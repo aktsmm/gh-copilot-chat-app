@@ -1,17 +1,14 @@
 {
   "repo": "github/copilot-cli",
-  "lastTag": "v0.0.420",
-  "lastName": "0.0.420",
-  "lastUrl": "https://github.com/github/copilot-cli/releases/tag/v0.0.420",
-  "lastPublishedAt": "2026-02-27T18:47:56Z",
-  "lastDetectedAt": "2026-03-03T10:47:53.224Z",
+  "lastTag": "v0.0.421",
+  "lastName": "0.0.421",
+  "lastUrl": "https://github.com/github/copilot-cli/releases/tag/v0.0.421",
+  "lastPublishedAt": "2026-03-03T18:12:57Z",
+  "lastDetectedAt": "2026-03-03T19:34:41.768Z",
   "lastModels": [
     "gpt-5",
     "gpt-5.3-codex",
-    "gpt-5-mini",
     "gpt-4.1",
-    "o3",
-    "o3-mini",
     "claude-sonnet-4.6"
   ]
 }
