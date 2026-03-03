@@ -15,9 +15,9 @@ Modern Claude / ChatGPT-like chat interface powered by GitHub Copilot SDK.
 
 ## Demo
 
-| Advanced Mode | Streaming Response |
-|:---:|:---:|
-| ![Advanced Mode](images/demo-chat-advanced.png) | ![Streaming](images/demo-chat-streaming.png) |
+|                  Advanced Mode                  |                 Simple Mode                  |
+| :---------------------------------------------: | :------------------------------------------: |
+| ![Advanced Mode](images/demo-chat-advanced.png) | ![Simple Mode](images/demo-simple-mode.png) |
 
 ## Highlights
 

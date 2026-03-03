@@ -15,9 +15,9 @@
 
 ## デモ
 
-| Advanced モード | ストリーミング応答 |
-|:---:|:---:|
-| ![Advanced モード](images/demo-chat-advanced.png) | ![ストリーミング](images/demo-chat-streaming.png) |
+|                  Advanced モード                  |                 Simple モード                  |
+| :-----------------------------------------------: | :---------------------------------------------: |
+| ![Advanced モード](images/demo-chat-advanced.png) | ![Simple モード](images/demo-simple-mode.png) |
 
 ## 特徴
 
