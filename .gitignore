@@ -47,3 +47,4 @@ tmp-*.ps1
 # Local AI workflow metadata (not required for app runtime)
 AGENTS.md
 .github/skills/
+.github/review-learnings.md
