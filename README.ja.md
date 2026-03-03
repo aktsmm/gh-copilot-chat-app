@@ -47,6 +47,55 @@
 
 ## セットアップ
 
+### 🚀 クイックスタート（EXE インストーラー）
+
+コードを触らずにすぐ使いたい方向けです。
+
+#### 必要なもの（事前準備）
+
+| 必要なもの | 取得先 | 備考 |
+|-----------|--------|------|
+| GitHub アカウント | [github.com](https://github.com) | 無料 |
+| GitHub Copilot サブスクリプション | [github.com/features/copilot](https://github.com/features/copilot) | Free プランあり |
+| GitHub Copilot CLI | 下記手順 | Node.js 不要な場合は winget で取得可 |
+
+#### ① GitHub Copilot CLI をインストール・認証
+
+```powershell
+# Node.js がある場合
+npm i -g @github/copilot
+
+# 認証（ブラウザが開いてログインするだけ）
+copilot auth login
+```
+
+> Node.js がない場合は [Node.js 公式サイト](https://nodejs.org/) から LTS をインストールしてからもう一度実行してください。
+
+#### ② インストーラーをダウンロード
+
+[Releases ページ](https://github.com/aktsmm/gh-copilot-chat-app/releases/latest) から
+`GitHub Copilot Chat Setup <バージョン>.exe` をダウンロードして実行します。
+
+```
+GitHub Copilot Chat Setup x.x.x.exe  ← これをダブルクリック
+```
+
+> Windows SmartScreen が警告を出した場合は「詳細情報」→「実行」を選んでください。
+
+#### ③ 起動する
+
+インストール完了後、デスクトップまたはスタートメニューの **GitHub Copilot Chat** をクリックすれば起動します。
+
+#### うまく動かない場合
+
+| 症状 | 対処 |
+|------|------|
+| `copilot: command not found` | ① の手順を再確認（ターミナルを再起動すると解決することも） |
+| 認証エラー | `copilot auth login` を再実行 |
+| 画面が真っ白 | タスクバーのアイコンを右クリック → 再起動 |
+
+---
+
 ### 前提条件
 
 1. **Node.js 20+**
