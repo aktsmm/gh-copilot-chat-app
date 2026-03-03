@@ -27,6 +27,10 @@
 - [5. Shared Modules](#5-shared-modules)
 - [6. Build System](#6-build-system)
 - [7. Security Model](#7-security-model)
+- [8. CI/CD Workflows](#8-cicd-workflows)
+  - [8.1 cli-release-auto-pr (Auto Release Tracking)](#81-cli-release-auto-pr-auto-release-tracking)
+  - [8.2 smoke-vite-server-url (PR Validation)](#82-smoke-vite-server-url-pr-validation)
+  - [8.3 release-desktop-assets (Desktop Release)](#83-release-desktop-assets-desktop-release)
 
 ---
 
@@ -768,3 +772,72 @@ Requires explicit permission: `shell`, `write`, `custom-tool`
 - `nodeIntegration: false` — No Node.js API access from renderer
 - Navigation restricted to `127.0.0.1:{port}` only
 - External links delegated to OS default browser via `shell.openExternal()`
+
+## 8. CI/CD Workflows
+
+This project automates CI/CD with three GitHub Actions workflows.
+
+### 8.1 cli-release-auto-pr (Auto Release Tracking)
+
+**File**: `.github/workflows/cli-release-auto-pr.yml`
+
+```
+cron (every 8 hours) or manual workflow_dispatch
+  │
+  ├── Fetch latest release from github/copilot-cli via GitHub API
+  ├── Compare with .github/automation/cli-release-state.json
+  │     └── No new release → exit
+  │
+  ├── New release detected
+  │     ├── Extract model IDs from release notes via regex (gpt-*, claude-*, o*)
+  │     ├── Update DEFAULT_MODELS in client/src/lib/store.ts
+  │     ├── Update FALLBACK_MODELS in client/src/lib/useChat.ts
+  │     ├── Generate report in reports/
+  │     └── Update cli-release-state.json
+  │
+  ├── Run lint + typecheck validation
+  │
+  ├── Create Draft PR via peter-evans/create-pull-request
+  │
+  └── Post @copilot review request comment
+        └── GitHub Copilot Coding Agent reviews the code diff
+```
+
+**Input parameters**:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `releaseRepo` | `github/copilot-cli` | Repository to monitor |
+| `force` | `false` | Set `true` to force run regardless of last processed tag |
+
+### 8.2 smoke-vite-server-url (PR Validation)
+
+**File**: `.github/workflows/smoke-vite-server-url.yml`
+
+```
+Pull Request created / updated
+  │
+  ├── npm ci
+  ├── npm run lint
+  ├── npm run typecheck
+  ├── npm test
+  └── Start Vite dev server → HTTP health check → exit
+```
+
+All steps must pass before merge (recommended to enforce via branch protection rules).
+
+### 8.3 release-desktop-assets (Desktop Release)
+
+**File**: `.github/workflows/release-desktop-assets.yml`
+
+```
+GitHub Release published
+  │
+  ├── npm ci
+  ├── npm run build (client + server)
+  ├── npm run build:desktop (electron-builder)
+  │     └── Generate Windows NSIS / portable EXE
+  └── Upload artifacts (*.exe) to the Release
+```
+
+> **Note**: macOS / Linux builds can be added with GitHub-hosted runners, but currently only Windows is targeted.

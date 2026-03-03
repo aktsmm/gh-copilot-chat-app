@@ -46,6 +46,22 @@
 - **ダークモード** — 目に優しいモダンなダークテーマ
 - **レスポンシブ** — サイドバー折りたたみ対応
 
+## CI/CD — 新機能の自動追従
+
+このプロジェクトでは、上流の Copilot CLI 変更に自動追従する CI/CD ワークフローを備えています：
+
+| ワークフロー | トリガー | 目的 |
+|---|---|---|
+| `cli-release-auto-pr` | cron (8時間) / 手動 | `github/copilot-cli` の新リリースを検出し、モデルリスト更新 → Draft PR 作成 → `@copilot` レビュー依頼 |
+| `smoke-vite-server-url` | Pull Request | lint, typecheck, ユニットテスト, Vite スモークテストを実行 |
+| `release-desktop-assets` | GitHub Release 公開 | Windows EXE インストーラーをビルドしアーティファクトをアップロード |
+
+> `@copilot` レビューステップは **GitHub Copilot Coding Agent** を利用し、自動作成された Draft PR を自動レビューします。
+
+| CI/CD ワークフローテスト |
+|:---:|
+| ![ワークフローテスト](images/demo-workflow-test.png) |
+
 ## アーキテクチャ
 
 ```

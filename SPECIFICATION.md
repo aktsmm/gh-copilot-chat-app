@@ -27,6 +27,10 @@
 - [5. 共有モジュール](#5-共有モジュール)
 - [6. ビルドシステム](#6-ビルドシステム)
 - [7. セキュリティモデル](#7-セキュリティモデル)
+- [8. CI/CD ワークフロー](#8-cicd-ワークフロー)
+  - [8.1 cli-release-auto-pr（自動リリース追従）](#81-cli-release-auto-pr自動リリース追従)
+  - [8.2 smoke-vite-server-url（PR 検証）](#82-smoke-vite-server-urlpr-検証)
+  - [8.3 release-desktop-assets（デスクトップリリース）](#83-release-desktop-assetsデスクトップリリース)
 
 ---
 
@@ -768,3 +772,72 @@ function isChatErrorCode(value: unknown): value is ChatErrorCode;
 - `nodeIntegration: false` — レンダラーから Node.js API へのアクセス禁止
 - Navigation は `127.0.0.1:{port}` のみに制限
 - 外部リンクは `shell.openExternal()` で OS デフォルトブラウザに委譲
+
+## 8. CI/CD ワークフロー
+
+本プロジェクトでは 3 つの GitHub Actions ワークフローで CI/CD を自動化しています。
+
+### 8.1 cli-release-auto-pr（自動リリース追従）
+
+**ファイル**: `.github/workflows/cli-release-auto-pr.yml`
+
+```
+cron (8 時間毎) or 手動 workflow_dispatch
+  │
+  ├── github/copilot-cli の最新リリースを GitHub API で取得
+  ├── .github/automation/cli-release-state.json と比較
+  │     └── 新リリースなし → 終了
+  │
+  ├── 新リリースあり
+  │     ├── リリースノートからモデル ID を正規表現で抽出 (gpt-*, claude-*, o*)
+  │     ├── client/src/lib/store.ts の DEFAULT_MODELS を更新
+  │     ├── client/src/lib/useChat.ts の FALLBACK_MODELS を更新
+  │     ├── reports/ にレポート生成
+  │     └── cli-release-state.json 更新
+  │
+  ├── lint + typecheck 検証
+  │
+  ├── peter-evans/create-pull-request で Draft PR 作成
+  │
+  └── @copilot にレビュー依頼コメントを自動投稿
+        └── GitHub Copilot Coding Agent がコード差分を確認
+```
+
+**入力パラメータ**:
+
+| パラメータ | デフォルト | 説明 |
+|---|---|---|
+| `releaseRepo` | `github/copilot-cli` | 監視対象リポジトリ |
+| `force` | `false` | `true` で前回タグに関係なく強制実行 |
+
+### 8.2 smoke-vite-server-url（PR 検証）
+
+**ファイル**: `.github/workflows/smoke-vite-server-url.yml`
+
+```
+Pull Request 作成 / 更新
+  │
+  ├── npm ci
+  ├── npm run lint
+  ├── npm run typecheck
+  ├── npm test
+  └── Vite dev サーバー起動 → HTTP ヘルスチェック → 終了
+```
+
+すべてのステップが成功しないとマージ不可（branch protection で保護推奨）。
+
+### 8.3 release-desktop-assets（デスクトップリリース）
+
+**ファイル**: `.github/workflows/release-desktop-assets.yml`
+
+```
+GitHub Release 公開
+  │
+  ├── npm ci
+  ├── npm run build (client + server)
+  ├── npm run build:desktop (electron-builder)
+  │     └── Windows NSIS / portable EXE 生成
+  └── Release にアーティファクト (*.exe) をアップロード
+```
+
+> **注意**: macOS / Linux ビルドは GitHub-hosted runner で追加可能ですが、現在は Windows のみ対象です。

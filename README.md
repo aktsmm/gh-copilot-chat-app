@@ -31,6 +31,18 @@ Modern Claude / ChatGPT-like chat interface powered by GitHub Copilot SDK.
 - Web-search fallback support for search-style prompts
 - Electron desktop packaging (Windows/macOS/Linux)
 
+## CI/CD — Automatic Feature Tracking
+
+This project includes automated workflows to keep pace with upstream Copilot CLI changes:
+
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| `cli-release-auto-pr` | cron (8 h) / manual | Detects new `github/copilot-cli` releases, updates model lists, creates a Draft PR, and requests `@copilot` review |
+| `smoke-vite-server-url` | Pull Request | Runs lint, typecheck, unit tests, and Vite smoke test |
+| `release-desktop-assets` | GitHub Release publish | Builds Windows EXE installer and uploads artifacts |
+
+> The `@copilot` review step uses **GitHub Copilot Coding Agent** to automatically review Draft PRs created by the automation.
+
 ## Requirements
 
 1. Node.js 20+
