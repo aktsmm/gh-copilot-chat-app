@@ -13,6 +13,12 @@ Modern Claude / ChatGPT-like chat interface powered by GitHub Copilot SDK.
 - English (base): this file (`README.md`)
 - 日本語: [README.ja.md](README.ja.md)
 
+## Demo
+
+| Advanced Mode | Streaming Response |
+|:---:|:---:|
+| ![Advanced Mode](images/demo-chat-advanced.png) | ![Streaming](images/demo-chat-streaming.png) |
+
 ## Highlights
 
 - Real-time streaming chat via Socket.IO
@@ -36,12 +42,12 @@ For users who just want to run the app without touching code.
 
 ### Prerequisites
 
-| Requirement | Where to get it | Notes |
-|------------|----------------|-------|
-| **Node.js 20+** | [nodejs.org](https://nodejs.org/) | Required to install the Copilot CLI |
-| **GitHub Copilot CLI** | `npm i -g @github/copilot` | The communication engine used internally |
-| GitHub account | [github.com](https://github.com) | Free |
-| GitHub Copilot subscription | [github.com/features/copilot](https://github.com/features/copilot) | Free plan available |
+| Requirement                 | Where to get it                                                    | Notes                                    |
+| --------------------------- | ------------------------------------------------------------------ | ---------------------------------------- |
+| **Node.js 20+**             | [nodejs.org](https://nodejs.org/)                                  | Required to install the Copilot CLI      |
+| **GitHub Copilot CLI**      | `npm i -g @github/copilot`                                         | The communication engine used internally |
+| GitHub account              | [github.com](https://github.com)                                   | Free                                     |
+| GitHub Copilot subscription | [github.com/features/copilot](https://github.com/features/copilot) | Free plan available                      |
 
 ### Step 1 — Install Node.js
 
@@ -78,12 +84,12 @@ After installation, click **GitHub Copilot Chat** from the desktop shortcut or S
 
 ### Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
+| Symptom                      | Fix                                                    |
+| ---------------------------- | ------------------------------------------------------ |
 | `copilot: command not found` | Re-check Steps 1 & 2. Restarting the terminal may help |
-| `node: command not found` | Install Node.js in Step 1 and try again |
-| Authentication error | Run `copilot auth login` again |
-| Blank white screen | Right-click the taskbar icon → Restart |
+| `node: command not found`    | Install Node.js in Step 1 and try again                |
+| Authentication error         | Run `copilot auth login` again                         |
+| Blank white screen           | Right-click the taskbar icon → Restart                 |
 
 ---
 

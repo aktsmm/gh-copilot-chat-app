@@ -13,6 +13,12 @@
 ![React](https://img.shields.io/badge/React-19-61dafb)
 ![Copilot SDK](https://img.shields.io/badge/Copilot_SDK-GA-22c55e)
 
+## デモ
+
+| Advanced モード | ストリーミング応答 |
+|:---:|:---:|
+| ![Advanced モード](images/demo-chat-advanced.png) | ![ストリーミング](images/demo-chat-streaming.png) |
+
 ## 特徴
 
 - **リアルタイムストリーミング** — Socket.IO でトークン単位の即時表示
@@ -56,12 +62,12 @@
 
 #### 必要なもの（事前準備）
 
-| 必要なもの | 取得先 | 備考 |
-|-----------|--------|------|
-| **Node.js 20+** | [nodejs.org](https://nodejs.org/) | Copilot CLI のインストールに必要 |
-| **GitHub Copilot CLI** | `npm i -g @github/copilot` | アプリが内部で使う通信エンジン |
-| GitHub アカウント | [github.com](https://github.com) | 無料 |
-| GitHub Copilot サブスクリプション | [github.com/features/copilot](https://github.com/features/copilot) | Free プランあり |
+| 必要なもの                        | 取得先                                                             | 備考                             |
+| --------------------------------- | ------------------------------------------------------------------ | -------------------------------- |
+| **Node.js 20+**                   | [nodejs.org](https://nodejs.org/)                                  | Copilot CLI のインストールに必要 |
+| **GitHub Copilot CLI**            | `npm i -g @github/copilot`                                         | アプリが内部で使う通信エンジン   |
+| GitHub アカウント                 | [github.com](https://github.com)                                   | 無料                             |
+| GitHub Copilot サブスクリプション | [github.com/features/copilot](https://github.com/features/copilot) | Free プランあり                  |
 
 #### ① Node.js をインストール
 
@@ -98,12 +104,12 @@ GitHub Copilot Chat Setup x.x.x.exe  ← これをダブルクリック
 
 #### うまく動かない場合
 
-| 症状 | 対処 |
-| --- | --- |
+| 症状                         | 対処                                                           |
+| ---------------------------- | -------------------------------------------------------------- |
 | `copilot: command not found` | ① ② を再確認。ターミナルを再起動すると PATH が反映されることも |
-| `node: command not found` | ① で Node.js をインストールしてからやり直し |
-| 認証エラー | `copilot auth login` を再実行 |
-| 画面が真っ白 | タスクバーのアイコンを右クリック → 再起動 |
+| `node: command not found`    | ① で Node.js をインストールしてからやり直し                    |
+| 認証エラー                   | `copilot auth login` を再実行                                  |
+| 画面が真っ白                 | タスクバーのアイコンを右クリック → 再起動                      |
 
 ---
 
