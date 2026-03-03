@@ -1,0 +1,23 @@
+export const CHAT_ERROR_CODES = [
+  "INVALID_REQUEST",
+  "SESSION_NOT_FOUND",
+  "MODE_SWITCH_FAILED",
+  "FLEET_UNAVAILABLE",
+  "FLEET_START_FAILED",
+  "SEND_FAILED",
+  "CREATE_SESSION_FAILED",
+  "MODEL_LIST_FAILED",
+  "TOOLS_LIST_FAILED",
+  "SESSION_ERROR",
+  "CLI_NOT_FOUND",
+  "CLI_SPAWN_FAILED",
+  "CLI_NOT_CONNECTED",
+  "AUTH_REQUIRED",
+  "UNKNOWN",
+];
+
+const CHAT_ERROR_CODE_SET = new Set(CHAT_ERROR_CODES);
+
+export function isChatErrorCode(value) {
+  return typeof value === "string" && CHAT_ERROR_CODE_SET.has(value);
+}

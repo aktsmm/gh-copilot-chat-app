@@ -1,0 +1,47 @@
+name: smoke-vite-server-url
+
+on:
+  pull_request:
+    paths:
+      - "client/**"
+      - "server/**"
+      - "desktop/**"
+      - "scripts/smoke-vite-server-url.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/smoke-vite-server-url.yml"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Lint + typecheck + tests + smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Server tests
+        run: npm run test -w server
+
+      - name: Desktop compile
+        run: npm run compile -w desktop
+
+      - name: Smoke test Vite proxy and VITE_SERVER_URL
+        run: npm run smoke:vite-server-url

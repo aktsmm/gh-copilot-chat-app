@@ -1,0 +1,42 @@
+{
+  "name": "copilot-chat-gui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Modern Chat GUI powered by GitHub Copilot SDK — Claude/ChatGPT-like interface for GitHub Copilot",
+  "type": "module",
+  "workspaces": [
+    "server",
+    "client",
+    "desktop"
+  ],
+  "scripts": {
+    "sync:chat-error-code-dts": "node scripts/sync-chat-error-code-dts.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "smoke:vite-server-url": "node scripts/smoke-vite-server-url.mjs",
+    "automation:cli-release": "node scripts/cli-release-automation.mjs",
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "dev:desktop": "npm run build -w client && npm run dev -w desktop",
+    "build": "npm run build -w client && npm run build -w server",
+    "build:desktop": "npm run build -w client && npm run build -w server && npm run build:win -w desktop",
+    "start": "npm run start -w server",
+    "clean": "rimraf server/dist client/dist desktop/dist node_modules/.cache",
+    "lint": "eslint .",
+    "typecheck": "npm run sync:chat-error-code-dts && tsc --noEmit -p server/tsconfig.json && tsc --noEmit -p client/tsconfig.json && tsc --noEmit -p desktop/tsconfig.json"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^9.1.2",
+    "eslint": "^10.0.2",
+    "globals": "^17.4.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.56.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT",
+  "author": "yamapan"
+}

@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Cache
+.cache/
+.turbo/
+
+# Desktop release artifacts
+desktop/dist/
+desktop/release/
+*.blockmap
+latest*.yml
+
+# Local temporary files
+.tmp*
+*.tmp
+tmp-*.ps1
+
+# Local AI workflow metadata (not required for app runtime)
+AGENTS.md
+.github/skills/

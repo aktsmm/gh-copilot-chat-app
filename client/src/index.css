@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-dark-4 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-brand-500/30 text-white;
+  }
+}
+
+@layer components {
+  /* Typing indicator dots */
+  .typing-dot {
+    @apply w-2 h-2 rounded-full bg-brand-400;
+    animation: pulseDot 1.4s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  /* Message bubble base */
+  .msg-bubble {
+    @apply max-w-[85%] rounded-2xl px-4 py-3 animate-slide-up;
+  }
+  .msg-user {
+    @apply bg-brand-600 text-white ml-auto rounded-br-md;
+  }
+  .msg-assistant {
+    @apply bg-surface-dark-2 text-gray-100 mr-auto rounded-bl-md;
+  }
+
+  /* Markdown inside messages */
+  .msg-assistant .prose {
+    @apply prose-invert prose-sm max-w-none;
+  }
+  .msg-assistant .prose pre {
+    @apply bg-surface-dark-0 rounded-xl border border-surface-dark-3 my-3;
+  }
+  .msg-assistant .prose code:not(pre code) {
+    @apply bg-surface-dark-3 text-brand-300 px-1.5 py-0.5 rounded text-xs font-mono;
+  }
+  .msg-assistant .prose a {
+    @apply text-brand-400 underline decoration-brand-400/30 hover:decoration-brand-400;
+  }
+
+  /* Sidebar */
+  .sidebar-item {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-300
+           hover:bg-surface-dark-3 cursor-pointer transition-colors truncate;
+  }
+  .sidebar-item.active {
+    @apply bg-surface-dark-3 text-white;
+  }
+
+  /* Input area */
+  .chat-input {
+    @apply w-full resize-none bg-surface-dark-2 border border-surface-dark-3 rounded-xl
+           px-4 py-3 text-gray-100 placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500
+           transition-all;
+  }
+}
+
+@layer utilities {
+  .theme-light {
+    color-scheme: light;
+  }
+
+  .theme-light .bg-surface-dark-0 {
+    @apply bg-surface-0;
+  }
+  .theme-light .bg-surface-dark-1 {
+    @apply bg-surface-1;
+  }
+  .theme-light .bg-surface-dark-2 {
+    @apply bg-surface-2;
+  }
+  .theme-light .bg-surface-dark-3,
+  .theme-light .bg-surface-dark-4 {
+    @apply bg-surface-3;
+  }
+  .theme-light .bg-surface-dark-1\/50,
+  .theme-light .bg-surface-dark-1\/20,
+  .theme-light .bg-surface-dark-2\/40 {
+    @apply bg-surface-1;
+  }
+
+  .theme-light .border-surface-dark-3,
+  .theme-light .border-surface-dark-4 {
+    @apply border-surface-3;
+  }
+
+  .theme-light .text-gray-100,
+  .theme-light .text-gray-200 {
+    color: theme("colors.gray.900");
+  }
+  .theme-light .text-gray-300 {
+    color: theme("colors.gray.800");
+  }
+  .theme-light .text-gray-400 {
+    color: theme("colors.gray.700");
+  }
+  .theme-light .text-gray-500 {
+    color: theme("colors.gray.600");
+  }
+  .theme-light .text-gray-600 {
+    color: theme("colors.gray.500");
+  }
+
+  .theme-light .hover\:bg-surface-dark-2:hover {
+    @apply bg-surface-2;
+  }
+  .theme-light .hover\:bg-surface-dark-3:hover,
+  .theme-light .hover\:bg-surface-dark-4:hover {
+    @apply bg-surface-3;
+  }
+  .theme-light .hover\:text-white:hover,
+  .theme-light .hover\:text-gray-200:hover,
+  .theme-light .hover\:text-gray-300:hover {
+    color: theme("colors.gray.900");
+  }
+
+  .theme-light .sidebar-item {
+    @apply text-gray-700 hover:bg-surface-2;
+  }
+  .theme-light .sidebar-item.active {
+    @apply bg-surface-3 text-gray-900;
+  }
+
+  .theme-light .msg-assistant {
+    @apply bg-surface-1 text-gray-900;
+  }
+  .theme-light .msg-assistant .prose {
+    @apply prose-slate;
+  }
+  .theme-light .msg-assistant .prose pre {
+    @apply bg-surface-0 border-surface-3;
+  }
+  .theme-light .msg-assistant .prose code:not(pre code) {
+    @apply bg-surface-2 text-brand-700;
+  }
+
+  .theme-light .chat-input {
+    @apply bg-surface-0 border-surface-3 text-gray-900 placeholder-gray-500;
+  }
+
+  .theme-light ::-webkit-scrollbar-thumb {
+    @apply bg-surface-3;
+  }
+  .theme-light ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+}
