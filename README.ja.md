@@ -13,6 +13,10 @@
 ![React](https://img.shields.io/badge/React-19-61dafb)
 ![Copilot SDK](https://img.shields.io/badge/Copilot_SDK-GA-22c55e)
 
+## ダウンロード
+
+> **すぐ試したい方は** [Releases ページ](https://github.com/aktsmm/gh-copilot-chat-app/releases) からデスクトップアプリ（Windows EXE）をダウンロードできます。
+
 ## デモ
 
 |                  Advanced モード                  |                 Simple モード                 |
@@ -50,16 +54,16 @@
 
 このプロジェクトでは、上流の Copilot CLI 変更に自動追従する CI/CD ワークフローを備えています：
 
-| ワークフロー | トリガー | 目的 |
-|---|---|---|
-| `cli-release-auto-pr` | cron (8時間) / 手動 | `github/copilot-cli` の新リリースを検出し、モデルリスト更新 → Draft PR 作成 → `@copilot` レビュー依頼 |
-| `smoke-vite-server-url` | Pull Request | lint, typecheck, ユニットテスト, Vite スモークテストを実行 |
-| `release-desktop-assets` | GitHub Release 公開 | Windows EXE インストーラーをビルドしアーティファクトをアップロード |
+| ワークフロー             | トリガー            | 目的                                                                                                  |
+| ------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------- |
+| `cli-release-auto-pr`    | cron (8時間) / 手動 | `github/copilot-cli` の新リリースを検出し、モデルリスト更新 → Draft PR 作成 → `@copilot` レビュー依頼 |
+| `smoke-vite-server-url`  | Pull Request        | lint, typecheck, ユニットテスト, Vite スモークテストを実行                                            |
+| `release-desktop-assets` | GitHub Release 公開 | Windows EXE インストーラーをビルドしアーティファクトをアップロード                                    |
 
 > `@copilot` レビューステップは **GitHub Copilot Coding Agent** を利用し、自動作成された Draft PR を自動レビューします。
 
-| CI/CD ワークフローテスト |
-|:---:|
+|               CI/CD ワークフローテスト               |
+| :--------------------------------------------------: |
 | ![ワークフローテスト](images/demo-workflow-test.png) |
 
 ## アーキテクチャ

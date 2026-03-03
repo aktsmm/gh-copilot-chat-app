@@ -13,6 +13,10 @@ Modern Claude / ChatGPT-like chat interface powered by GitHub Copilot SDK.
 - English (base): this file (`README.md`)
 - 日本語: [README.ja.md](README.ja.md)
 
+## Download
+
+> **Want to try it out?** Go to the [Releases page](https://github.com/aktsmm/gh-copilot-chat-app/releases) to download the latest desktop app (Windows EXE).
+
 ## Demo
 
 |                  Advanced Mode                  |                 Simple Mode                 |
@@ -35,11 +39,11 @@ Modern Claude / ChatGPT-like chat interface powered by GitHub Copilot SDK.
 
 This project includes automated workflows to keep pace with upstream Copilot CLI changes:
 
-| Workflow | Trigger | Purpose |
-|---|---|---|
-| `cli-release-auto-pr` | cron (8 h) / manual | Detects new `github/copilot-cli` releases, updates model lists, creates a Draft PR, and requests `@copilot` review |
-| `smoke-vite-server-url` | Pull Request | Runs lint, typecheck, unit tests, and Vite smoke test |
-| `release-desktop-assets` | GitHub Release publish | Builds Windows EXE installer and uploads artifacts |
+| Workflow                 | Trigger                | Purpose                                                                                                            |
+| ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `cli-release-auto-pr`    | cron (8 h) / manual    | Detects new `github/copilot-cli` releases, updates model lists, creates a Draft PR, and requests `@copilot` review |
+| `smoke-vite-server-url`  | Pull Request           | Runs lint, typecheck, unit tests, and Vite smoke test                                                              |
+| `release-desktop-assets` | GitHub Release publish | Builds Windows EXE installer and uploads artifacts                                                                 |
 
 > The `@copilot` review step uses **GitHub Copilot Coding Agent** to automatically review Draft PRs created by the automation.
 
