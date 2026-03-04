@@ -30,6 +30,22 @@ let isQuitting = false;
 
 const EXTERNAL_PROTOCOL_ALLOWLIST = new Set(["http:", "https:"]);
 
+function revealMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+
+  mainWindow.focus();
+}
+
 function resolveIconPath(preferIco = false): string | undefined {
   const iconFileNames = preferIco
     ? ["icon.ico", "icon.png"]
@@ -82,10 +98,7 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
+    revealMainWindow();
   });
 }
 
@@ -299,7 +312,7 @@ function createTray() {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: "Show GitHub Copilot Chat",
-      click: () => mainWindow?.show(),
+      click: () => revealMainWindow(),
     },
     { type: "separator" },
     {
@@ -314,8 +327,12 @@ function createTray() {
   tray.setToolTip("GitHub Copilot Chat");
   tray.setContextMenu(contextMenu);
 
+  tray.on("click", () => {
+    revealMainWindow();
+  });
+
   tray.on("double-click", () => {
-    mainWindow?.show();
+    revealMainWindow();
   });
 }
 
@@ -364,7 +381,7 @@ app.on("activate", () => {
   if (mainWindow === null) {
     createWindow();
   } else {
-    mainWindow.show();
+    revealMainWindow();
   }
 });
 

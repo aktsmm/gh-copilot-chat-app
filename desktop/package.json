@@ -1,6 +1,6 @@
 {
   "name": "copilot-chat-desktop",
-  "version": "0.1.0-beta.5",
+  "version": "0.1.0-beta.6",
   "private": true,
   "author": "yamapan",
   "license": "MIT",
@@ -19,8 +19,13 @@
     "appId": "com.copilot-chat.desktop",
     "productName": "GitHub Copilot Chat",
     "asar": true,
+    "electronLanguages": [
+      "en-US",
+      "ja"
+    ],
     "files": [
-      "dist/**/*",
+      "dist/desktop/**/*",
+      "dist/server/**/*",
       {
         "from": "../client/dist",
         "to": "client",
@@ -56,6 +61,7 @@
       "!**/node_modules/**/@github/copilot/prebuilds/win32-arm64/**",
       "!**/node_modules/**/@github/copilot/ripgrep/bin/darwin-*/**",
       "!**/node_modules/**/@github/copilot/ripgrep/bin/linux-*/**",
+      "!**/node_modules/**/@github/copilot/ripgrep/bin/win32-arm64/**",
       "!**/node_modules/**/copilot-chat-desktop/**",
       "!**/node_modules/**/client/**",
       "!**/node_modules/**/server/**"
