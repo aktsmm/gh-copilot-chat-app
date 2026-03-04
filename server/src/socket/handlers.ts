@@ -1039,14 +1039,31 @@ export function registerSocketHandlers(
     });
 
     // ── Abort current generation ────────────────────────────
-    socket.on("chat:abort", async (payload: SessionScopedPayload) => {
-      const entry = resolveSession(payload?.sessionId ?? "");
-      if (entry) {
-        try {
-          await entry.session.abort();
-        } catch {
-          /* best-effort */
-        }
+    socket.on("chat:abort", async (payload: unknown, ack?: SocketAck) => {
+      const body = toRecord(payload);
+      const sessionId = toTrimmedString(body.sessionId);
+      if (!sessionId) {
+        ack?.(buildAckErrorPayload("Invalid sessionId", "INVALID_REQUEST"));
+        emitChatError(socket, null, "Invalid sessionId", "INVALID_REQUEST");
+        return;
+      }
+
+      const entry = resolveSession(sessionId);
+      if (!entry) {
+        ack?.(buildAckErrorPayload("Session not found", "SESSION_NOT_FOUND"));
+        emitChatError(socket, sessionId, "Session not found", "SESSION_NOT_FOUND");
+        return;
+      }
+
+      try {
+        await entry.session.abort();
+        socket.emit("chat:idle", { sessionId });
+        ack?.({ ok: true });
+      } catch (abortError: unknown) {
+        const message = getErrorMessage(abortError, "Failed to abort generation");
+        const errorCode = classifyChatErrorCode(message);
+        ack?.(buildAckErrorPayload(message, errorCode));
+        emitChatError(socket, sessionId, message, errorCode);
       }
     });
 

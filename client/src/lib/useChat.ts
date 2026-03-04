@@ -534,6 +534,12 @@ function formatSystemErrorMessage(
   return detail;
 }
 
+function formatSocketDisconnectedMessage(language: UiLanguage): string {
+  return language === "ja"
+    ? "サーバーに接続されていません。再接続後にもう一度実行してください。"
+    : "Server is disconnected. Please retry after reconnection.";
+}
+
 interface CreateChatOptions {
   model?: string;
   mode?: AgentMode;
@@ -777,6 +783,16 @@ export function useChat() {
       generatingSessionIdsRef.current.delete(sessionId);
     },
     [],
+  );
+
+  const ensureSocketConnected = useCallback(
+    (sessionId?: string) => {
+      if (socketRef.current.connected) return true;
+      const detail = formatSocketDisconnectedMessage(languageRef.current);
+      pushSystemErrorNotice(detail, sessionId);
+      return false;
+    },
+    [pushSystemErrorNotice],
   );
 
   // ── Wire up Socket.IO event listeners ─────────────────────
@@ -1066,6 +1082,7 @@ export function useChat() {
 
   const emitFleetStart = useCallback(
     (sessionId: string, prompt: string) => {
+      if (!ensureSocketConnected(sessionId)) return;
       socketRef.current.emit(
         "session:fleet_start",
         { sessionId, prompt },
@@ -1084,12 +1101,13 @@ export function useChat() {
         },
       );
     },
-    [markFleetStartAckError, pushSystemErrorNotice],
+    [ensureSocketConnected, markFleetStartAckError, pushSystemErrorNotice],
   );
 
   const createChat = useCallback(
     (opts: CreateChatOptions = {}) => {
       const s = socketRef.current;
+      if (!ensureSocketConnected()) return;
       const model = opts.model ?? store.preferredModel;
       const mode = opts.mode ?? store.preferredAgentMode;
       const personaMessage = store.copilotPersona.trim();
@@ -1195,6 +1213,7 @@ export function useChat() {
       );
     },
     [
+      ensureSocketConnected,
       pushSystemErrorNotice,
       store.preferredAgentMode,
       store.copilotPersona,
@@ -1210,6 +1229,7 @@ export function useChat() {
     (prompt: string, options?: SendMessageOptions) => {
       const id = store.activeId;
       if (!id || !prompt.trim()) return;
+      if (!ensureSocketConnected(id)) return;
       const mode = options?.mode ?? store.preferredAgentMode;
 
       const runtimePrompt = options?.useDeepResearchPrompt
@@ -1247,6 +1267,7 @@ export function useChat() {
       });
     },
     [
+      ensureSocketConnected,
       store.activeId,
       store.preferredAgentMode,
       store.uiLanguage,
@@ -1274,10 +1295,31 @@ export function useChat() {
   );
 
   const abortGeneration = useCallback(() => {
-    if (store.activeId) {
-      socketRef.current.emit("chat:abort", { sessionId: store.activeId });
-    }
-  }, [store.activeId]);
+    if (!store.activeId) return;
+    if (!ensureSocketConnected(store.activeId)) return;
+
+    const sessionId = store.activeId;
+    markGeneratingState(sessionId, false);
+    socketRef.current.emit("chat:abort", { sessionId }, (res: unknown) => {
+      const response = toObject(res);
+      if (response.ok === false) {
+        const errorCode = isChatErrorCode(response.errorCode)
+          ? response.errorCode
+          : undefined;
+        const errorDetail =
+          toNonEmptyString(response.error) ??
+          (languageRef.current === "ja"
+            ? "生成停止に失敗しました"
+            : "Failed to stop generation");
+        pushSystemErrorNotice(errorDetail, sessionId, errorCode);
+      }
+    });
+  }, [
+    ensureSocketConnected,
+    markGeneratingState,
+    pushSystemErrorNotice,
+    store.activeId,
+  ]);
 
   const deleteChat = useCallback(
     (id: string) => {

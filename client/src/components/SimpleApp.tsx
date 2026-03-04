@@ -128,6 +128,7 @@ function HistoryDrawer({
       />
       {/* Panel */}
       <aside
+        id="simple-history-drawer"
         ref={panelRef}
         role="dialog"
         aria-modal="true"
@@ -159,6 +160,7 @@ function HistoryDrawer({
             <button
               key={c.id}
               type="button"
+              aria-current={c.id === activeId ? "page" : undefined}
               onClick={() => {
                 onSelect(c.id);
                 onClose();

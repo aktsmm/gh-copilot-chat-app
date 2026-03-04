@@ -44,20 +44,31 @@ export function SimpleHeader({
   return (
     <header className="flex items-center h-12 px-3 gap-2 border-b border-surface-dark-2 bg-surface-dark-1/80 backdrop-blur-sm shrink-0">
       {/* History toggle */}
-      <button
-        ref={historyToggleButtonRef}
-        type="button"
-        onClick={onToggleHistory}
-        className={`p-1.5 rounded-lg transition-colors ${
-          showHistory
-            ? "bg-brand-600/20 text-brand-400"
-            : "text-gray-400 hover:text-gray-200 hover:bg-surface-dark-2"
-        }`}
-        title={t(language, "conversations")}
-        aria-label={t(language, "conversations")}
-      >
-        <PanelLeft className="w-4 h-4" />
-      </button>
+      {showHistory ? (
+        <button
+          ref={historyToggleButtonRef}
+          type="button"
+          onClick={onToggleHistory}
+          aria-expanded="true"
+          className="p-1.5 rounded-lg transition-colors bg-brand-600/20 text-brand-400"
+          title={t(language, "conversations")}
+          aria-label={t(language, "conversations")}
+        >
+          <PanelLeft className="w-4 h-4" />
+        </button>
+      ) : (
+        <button
+          ref={historyToggleButtonRef}
+          type="button"
+          onClick={onToggleHistory}
+          aria-expanded="false"
+          className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-gray-200 hover:bg-surface-dark-2"
+          title={t(language, "conversations")}
+          aria-label={t(language, "conversations")}
+        >
+          <PanelLeft className="w-4 h-4" />
+        </button>
+      )}
 
       {/* Model selector */}
       <select

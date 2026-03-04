@@ -989,95 +989,100 @@ export function Sidebar({
 
       {/* Conversation list */}
       <nav className="flex-1 px-2 pb-4 space-y-0.5">
-        {filteredConversations.map((conv) => (
-          <div
-            key={conv.id}
-            className={`group sidebar-item ${conv.id === activeId ? "active" : ""}`}
-          >
-            {editingId === conv.id && !collapsed ? (
-              <>
-                <MessageSquare className="w-4 h-4 flex-shrink-0 text-gray-500" />
-                <div className="flex items-center gap-1 flex-1 min-w-0">
-                  <input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitRename();
-                      if (e.key === "Escape") cancelRename();
-                    }}
-                    placeholder={t(language, "renameTitle")}
-                    title={t(language, "renameTitle")}
-                    aria-label={t(language, "renameTitle")}
-                    className="flex-1 bg-surface-dark-0 text-xs rounded px-1.5 py-0.5 border border-surface-dark-4 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={commitRename}
-                    title={t(language, "saveRename")}
-                    aria-label={t(language, "saveRename")}
-                    className="text-green-400 hover:text-green-300"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelRename}
-                    title={t(language, "cancelRename")}
-                    aria-label={t(language, "cancelRename")}
-                    className="text-gray-400 hover:text-gray-300"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  ref={(element) => {
-                    conversationButtonRefs.current[conv.id] = element;
-                  }}
-                  onClick={() => onSelect(conv.id)}
-                  aria-label={conv.title}
-                  title={conv.title}
-                  className={`flex items-center gap-2 min-w-0 ${
-                    collapsed ? "w-full justify-center" : "flex-1"
-                  } focus:outline-none focus:ring-1 focus:ring-brand-500 rounded`}
-                >
+        {filteredConversations.map((conv) => {
+          const disableConversationActions = isGenerating && conv.id === activeId;
+          return (
+            <div
+              key={conv.id}
+              className={`group sidebar-item ${conv.id === activeId ? "active" : ""}`}
+            >
+              {editingId === conv.id && !collapsed ? (
+                <>
                   <MessageSquare className="w-4 h-4 flex-shrink-0 text-gray-500" />
-                  {!collapsed && (
-                    <span className="flex-1 truncate text-xs">
-                      {conv.title}
-                    </span>
-                  )}
-                </button>
-                {!collapsed && (
-                  <div className="hidden group-hover:flex group-focus-within:flex items-center gap-0.5">
+                  <div className="flex items-center gap-1 flex-1 min-w-0">
+                    <input
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRename();
+                        if (e.key === "Escape") cancelRename();
+                      }}
+                      placeholder={t(language, "renameTitle")}
+                      title={t(language, "renameTitle")}
+                      aria-label={t(language, "renameTitle")}
+                      className="flex-1 bg-surface-dark-0 text-xs rounded px-1.5 py-0.5 border border-surface-dark-4 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      autoFocus
+                    />
                     <button
                       type="button"
-                      onClick={() => startRename(conv)}
-                      className="p-1 rounded hover:bg-surface-dark-4 text-gray-500 hover:text-gray-300"
-                      title={t(language, "rename")}
-                      aria-label={t(language, "rename")}
+                      onClick={commitRename}
+                      title={t(language, "saveRename")}
+                      aria-label={t(language, "saveRename")}
+                      className="text-green-400 hover:text-green-300"
                     >
-                      <Pencil className="w-3 h-3" />
+                      <Check className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDelete(conv.id)}
-                      className="p-1 rounded hover:bg-red-900/30 text-gray-500 hover:text-red-400"
-                      title={t(language, "delete")}
-                      aria-label={t(language, "delete")}
+                      onClick={cancelRename}
+                      title={t(language, "cancelRename")}
+                      aria-label={t(language, "cancelRename")}
+                      className="text-gray-400 hover:text-gray-300"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        ))}
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    ref={(element) => {
+                      conversationButtonRefs.current[conv.id] = element;
+                    }}
+                    onClick={() => onSelect(conv.id)}
+                    aria-label={conv.title}
+                    title={conv.title}
+                    className={`flex items-center gap-2 min-w-0 ${
+                      collapsed ? "w-full justify-center" : "flex-1"
+                    } focus:outline-none focus:ring-1 focus:ring-brand-500 rounded`}
+                  >
+                    <MessageSquare className="w-4 h-4 flex-shrink-0 text-gray-500" />
+                    {!collapsed && (
+                      <span className="flex-1 truncate text-xs">
+                        {conv.title}
+                      </span>
+                    )}
+                  </button>
+                  {!collapsed && (
+                    <div className="hidden group-hover:flex group-focus-within:flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => startRename(conv)}
+                        disabled={disableConversationActions}
+                        className="p-1 rounded hover:bg-surface-dark-4 text-gray-500 hover:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-500"
+                        title={t(language, "rename")}
+                        aria-label={t(language, "rename")}
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(conv.id)}
+                        disabled={disableConversationActions}
+                        className="p-1 rounded hover:bg-red-900/30 text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-500"
+                        title={t(language, "delete")}
+                        aria-label={t(language, "delete")}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
 
         {filteredConversations.length === 0 && !collapsed && (
           <div className="text-center text-gray-600 text-xs py-8">
