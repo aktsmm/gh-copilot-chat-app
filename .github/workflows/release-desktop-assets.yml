@@ -62,7 +62,6 @@ jobs:
 
           $setupExe = Get-ChildItem "$dist/GitHub Copilot Chat Setup *.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           $portableExe = Get-ChildItem "$dist/GitHub Copilot Chat [0-9]*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          $blockmap = Get-ChildItem "$dist/GitHub Copilot Chat Setup *.exe.blockmap" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
           if (-not $setupExe) { throw "Setup EXE not found under desktop/dist" }
           if (-not $portableExe) { throw "Portable EXE not found under desktop/dist" }
@@ -77,14 +76,9 @@ jobs:
           Compress-Archive -LiteralPath $portableExe.FullName -DestinationPath $portableZip -CompressionLevel Optimal
 
           $hashTargets = @(
-            $setupExe.FullName,
-            $portableExe.FullName,
             $setupZip,
             $portableZip
           )
-          if ($blockmap) {
-            $hashTargets += $blockmap.FullName
-          }
 
           $shaPath = Join-Path $dist "SHA256SUMS.txt"
           $lines = foreach ($target in $hashTargets) {
@@ -98,10 +92,7 @@ jobs:
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           files: |
-            desktop/dist/GitHub Copilot Chat Setup *.exe
-            desktop/dist/GitHub Copilot Chat Setup *.exe.blockmap
             desktop/dist/GitHub Copilot Chat Setup *.zip
-            desktop/dist/GitHub Copilot Chat [0-9]*.exe
             desktop/dist/GitHub Copilot Chat [0-9]*.zip
             desktop/dist/SHA256SUMS.txt
           fail_on_unmatched_files: true

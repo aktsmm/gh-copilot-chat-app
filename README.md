@@ -15,7 +15,7 @@ Modern Claude / ChatGPT-like chat interface powered by GitHub Copilot SDK.
 
 ## Download
 
-> **Want to try it out?** Go to the [Releases page](https://github.com/aktsmm/gh-copilot-chat-app/releases) to download the latest desktop app (Windows EXE / ZIP).
+> **Want to try it out?** Go to the [Releases page](https://github.com/aktsmm/gh-copilot-chat-app/releases) to download the latest desktop app (Windows ZIP).
 
 ## Demo
 
@@ -43,7 +43,7 @@ This project includes automated workflows to keep pace with upstream Copilot CLI
 | ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `cli-release-auto-pr`    | cron (8 h) / manual    | Detects new `github/copilot-cli` releases, updates model lists, creates a Draft PR, and requests `@copilot` review |
 | `smoke-vite-server-url`  | Pull Request           | Runs lint, typecheck, unit tests, and Vite smoke test                                                              |
-| `release-desktop-assets` | GitHub Release publish | Builds Windows EXE/ZIP assets and uploads artifacts                                                                |
+| `release-desktop-assets` | GitHub Release publish | Builds Windows ZIP assets and uploads artifacts                                                                    |
 
 > The `@copilot` review step uses **GitHub Copilot Coding Agent** to automatically review Draft PRs created by the automation.
 
@@ -90,7 +90,7 @@ copilot --version
 ### Step 3 — Download the installer
 
 Go to the [Releases page](https://github.com/aktsmm/gh-copilot-chat-app/releases/latest) and download
-`GitHub Copilot Chat Setup <version>.zip` (recommended) or `...exe`, then run it.
+`GitHub Copilot Chat Setup <version>.zip`, then run it.
 
 > If you see `NSIS Error (Installer integrity check has failed)`, re-download the ZIP package and run the extracted EXE.
 
@@ -155,10 +155,7 @@ Expected installer output:
 - Do not commit distributables (EXE) to the repository.
 - Attach them as GitHub Release Assets.
 - On `Release published`, [release-desktop-assets.yml](.github/workflows/release-desktop-assets.yml) builds and uploads:
-  - GitHub Copilot Chat Setup <version>.exe
-  - GitHub Copilot Chat Setup <version>.exe.blockmap
   - GitHub Copilot Chat Setup <version>.zip
-  - GitHub Copilot Chat <version>.exe (portable)
   - GitHub Copilot Chat <version>.zip (portable)
   - SHA256SUMS.txt
 - For manual execution, use workflow_dispatch and provide `tag`.
