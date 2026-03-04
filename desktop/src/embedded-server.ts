@@ -10,6 +10,7 @@ import cors from "cors";
 import { createServer, type Server as HTTPServer } from "node:http";
 import { Server as SocketIO } from "socket.io";
 import path from "node:path";
+import { existsSync } from "node:fs";
 import { app as electronApp } from "electron";
 
 // We import server modules directly from the server workspace
@@ -25,6 +26,24 @@ import {
 } from "../../server/src/config.js";
 
 let httpServer: HTTPServer | null = null;
+
+function resolveClientDistPath(): string {
+  if (!electronApp.isPackaged) {
+    return path.resolve(electronApp.getAppPath(), "../client/dist");
+  }
+
+  const asarClient = path.join(electronApp.getAppPath(), "client");
+  if (existsSync(asarClient)) {
+    return asarClient;
+  }
+
+  const legacyResourceClient = path.join(process.resourcesPath, "client");
+  if (existsSync(legacyResourceClient)) {
+    return legacyResourceClient;
+  }
+
+  return asarClient;
+}
 
 function resolveCorsOrigin(
   origin: string | undefined,
@@ -153,9 +172,7 @@ export async function startEmbeddedServer(): Promise<number> {
   expressApp.use("/api", apiRouter);
 
   // Serve the built client assets
-  const clientDist = electronApp.isPackaged
-    ? path.join(process.resourcesPath, "client")
-    : path.resolve(electronApp.getAppPath(), "../client/dist");
+  const clientDist = resolveClientDistPath();
 
   expressApp.use(express.static(clientDist));
   expressApp.get("/{*path}", (_req, res, next) => {

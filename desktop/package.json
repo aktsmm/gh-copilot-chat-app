@@ -1,6 +1,6 @@
 {
   "name": "copilot-chat-desktop",
-  "version": "0.1.0-beta.3",
+  "version": "0.1.0-beta.4",
   "private": true,
   "author": "yamapan",
   "license": "MIT",
@@ -18,8 +18,16 @@
   "build": {
     "appId": "com.copilot-chat.desktop",
     "productName": "GitHub Copilot Chat",
+    "asar": true,
     "files": [
       "dist/**/*",
+      {
+        "from": "../client/dist",
+        "to": "client",
+        "filter": [
+          "**/*"
+        ]
+      },
       "!dist/**/*.map",
       "!**/node_modules/**/electron/**",
       "!**/node_modules/**/electron-builder/**",
@@ -54,14 +62,6 @@
     ],
     "extraResources": [
       {
-        "from": "../server/dist",
-        "to": "server"
-      },
-      {
-        "from": "../client/dist",
-        "to": "client"
-      },
-      {
         "from": "assets",
         "to": "assets",
         "filter": [
@@ -73,8 +73,7 @@
     "win": {
       "signAndEditExecutable": false,
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ],
       "icon": "assets/icon.ico"
     },

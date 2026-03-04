@@ -88,25 +88,24 @@ jobs:
           $version = "${{ steps.release_tag.outputs.version }}"
 
           $setupExe = Join-Path $dist ("GitHub Copilot Chat Setup $version.exe")
-          $portableExe = Join-Path $dist ("GitHub Copilot Chat $version.exe")
+          $portableDir = Join-Path $dist "win-unpacked"
 
           if (-not (Test-Path -LiteralPath $setupExe)) {
             $candidates = Get-ChildItem -Path "$dist/GitHub Copilot Chat Setup *.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
             throw "Setup EXE not found for version '$version'. Found: $($candidates -join ', ')"
           }
-          if (-not (Test-Path -LiteralPath $portableExe)) {
-            $candidates = Get-ChildItem -Path "$dist/GitHub Copilot Chat *.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
-            throw "Portable EXE not found for version '$version'. Found: $($candidates -join ', ')"
+          if (-not (Test-Path -LiteralPath $portableDir)) {
+            throw "Portable folder not found: $portableDir"
           }
 
           $setupZip = Join-Path $dist ("GitHub Copilot Chat Setup $version.zip")
-          $portableZip = Join-Path $dist ("GitHub Copilot Chat $version.zip")
+          $portableZip = Join-Path $dist ("GitHub Copilot Chat Portable $version.zip")
 
           if (Test-Path $setupZip) { Remove-Item $setupZip -Force }
           if (Test-Path $portableZip) { Remove-Item $portableZip -Force }
 
           Compress-Archive -LiteralPath $setupExe -DestinationPath $setupZip -CompressionLevel Optimal
-          Compress-Archive -LiteralPath $portableExe -DestinationPath $portableZip -CompressionLevel Optimal
+          Compress-Archive -Path (Join-Path $portableDir "*") -DestinationPath $portableZip -CompressionLevel Optimal
 
           $hashTargets = @(
             $setupZip,
@@ -126,6 +125,6 @@ jobs:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           files: |
             desktop/dist/GitHub Copilot Chat Setup ${{ steps.release_tag.outputs.version }}.zip
-            desktop/dist/GitHub Copilot Chat ${{ steps.release_tag.outputs.version }}.zip
+            desktop/dist/GitHub Copilot Chat Portable ${{ steps.release_tag.outputs.version }}.zip
             desktop/dist/SHA256SUMS.txt
           fail_on_unmatched_files: true

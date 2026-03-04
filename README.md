@@ -146,6 +146,10 @@ Expected installer output:
 
 - desktop/dist/GitHub Copilot Chat Setup <version>.exe
 
+Portable folder output (recommended for non-installer use):
+
+- desktop/dist/win-unpacked/
+
 ## Pre-release Checklist
 
 1. Run quality checks
@@ -161,7 +165,7 @@ Expected installer output:
 - Attach them as GitHub Release Assets.
 - On `Release published`, [release-desktop-assets.yml](.github/workflows/release-desktop-assets.yml) builds and uploads:
   - GitHub Copilot Chat Setup <version>.zip
-  - GitHub Copilot Chat <version>.zip (portable)
+  - GitHub Copilot Chat Portable <version>.zip (extracted-folder style)
   - SHA256SUMS.txt
 - The workflow validates that release `tag` (without leading `v`) matches all workspace `package.json` versions.
 - For manual execution, use workflow_dispatch and provide `tag`.

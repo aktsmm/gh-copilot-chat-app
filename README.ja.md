@@ -213,6 +213,7 @@ npm start
 2. デスクトップ配布物の更新（Windows）
    - `npm run build:desktop`
    - 生成物: `desktop/dist/GitHub Copilot Chat Setup <version>.exe`
+   - インストーラー不要の展開型は `desktop/dist/win-unpacked/` を利用
 3. 機密情報の確認
    - `.env` / APIキー / 個人用トークンが含まれていないこと
 4. 変更差分の確認
@@ -223,7 +224,7 @@ npm start
 - 配布物（EXE）はリポジトリへコミットせず、GitHub Release Assets として添付します。
 - `Release published` 時に [release-desktop-assets.yml](.github/workflows/release-desktop-assets.yml) が自動で `npm run build:desktop` を実行し、以下を添付します。
   - `GitHub Copilot Chat Setup <version>.zip`
-  - `GitHub Copilot Chat <version>.zip`（portable）
+   - `GitHub Copilot Chat Portable <version>.zip`（展開型）
   - `SHA256SUMS.txt`
 - workflow はリリース `tag`（先頭 `v` を除く）と各 workspace の `package.json` version が一致することを検証します。
 - 手動実行の場合は workflow_dispatch で `tag` を指定してください。

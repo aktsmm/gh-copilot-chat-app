@@ -728,10 +728,10 @@ function isChatErrorCode(value: unknown): value is ChatErrorCode;
 | 項目            | 値                           |
 | --------------- | ---------------------------- |
 | appId           | `com.copilot-chat.desktop`   |
-| Windows         | NSIS + Portable              |
+| Windows         | NSIS + win-unpacked (ZIP配布) |
 | macOS           | DMG                          |
 | Linux           | AppImage + deb               |
-| Extra Resources | `server/dist`, `client/dist` |
+| Extra Resources | `assets`                     |
 
 ---
 
@@ -836,8 +836,8 @@ GitHub Release 公開
   ├── npm ci
   ├── npm run build (client + server)
   ├── npm run build:desktop (electron-builder)
-  │     └── Windows NSIS / portable EXE 生成
-  └── Release にアーティファクト (*.exe) をアップロード
+  │     └── Windows NSIS + win-unpacked 生成
+  └── Release にアーティファクト (*.zip) をアップロード
 ```
 
 > **注意**: macOS / Linux ビルドは GitHub-hosted runner で追加可能ですが、現在は Windows のみ対象です。

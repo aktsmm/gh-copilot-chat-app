@@ -728,10 +728,10 @@ This serves as the SSOT (Single Source of Truth) referenced by both server and c
 | Property        | Value                        |
 | --------------- | ---------------------------- |
 | appId           | `com.copilot-chat.desktop`   |
-| Windows         | NSIS + Portable              |
+| Windows         | NSIS + win-unpacked (ZIP distribution) |
 | macOS           | DMG                          |
 | Linux           | AppImage + deb               |
-| Extra Resources | `server/dist`, `client/dist` |
+| Extra Resources | `assets`                     |
 
 ---
 
@@ -836,8 +836,8 @@ GitHub Release published
   ├── npm ci
   ├── npm run build (client + server)
   ├── npm run build:desktop (electron-builder)
-  │     └── Generate Windows NSIS / portable EXE
-  └── Upload artifacts (*.exe) to the Release
+  │     └── Generate Windows NSIS + win-unpacked
+  └── Upload artifacts (*.zip) to the Release
 ```
 
 > **Note**: macOS / Linux builds can be added with GitHub-hosted runners, but currently only Windows is targeted.
