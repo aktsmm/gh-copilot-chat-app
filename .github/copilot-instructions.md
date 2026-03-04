@@ -47,4 +47,4 @@ npm run clean          # dist / cache 一括削除
 
 ## 参照
 
-- セッション学習: `.github/review-learnings.md`
+- セッション学習（ローカル専用）: `.github/review-learnings.md`
