@@ -32,6 +32,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Clean desktop dist
+        shell: pwsh
+        run: |
+          if (Test-Path "desktop/dist") {
+            Remove-Item "desktop/dist" -Recurse -Force
+          }
+
       - name: Build desktop distributables
         run: npm run build:desktop
 
@@ -48,6 +55,44 @@ jobs:
           }
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
+      - name: Create ZIP bundles and checksums
+        shell: pwsh
+        run: |
+          $dist = Resolve-Path "desktop/dist"
+
+          $setupExe = Get-ChildItem "$dist/GitHub Copilot Chat Setup *.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $portableExe = Get-ChildItem "$dist/GitHub Copilot Chat [0-9]*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $blockmap = Get-ChildItem "$dist/GitHub Copilot Chat Setup *.exe.blockmap" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+          if (-not $setupExe) { throw "Setup EXE not found under desktop/dist" }
+          if (-not $portableExe) { throw "Portable EXE not found under desktop/dist" }
+
+          $setupZip = Join-Path $dist ($setupExe.BaseName + ".zip")
+          $portableZip = Join-Path $dist ($portableExe.BaseName + ".zip")
+
+          if (Test-Path $setupZip) { Remove-Item $setupZip -Force }
+          if (Test-Path $portableZip) { Remove-Item $portableZip -Force }
+
+          Compress-Archive -LiteralPath $setupExe.FullName -DestinationPath $setupZip -CompressionLevel Optimal
+          Compress-Archive -LiteralPath $portableExe.FullName -DestinationPath $portableZip -CompressionLevel Optimal
+
+          $hashTargets = @(
+            $setupExe.FullName,
+            $portableExe.FullName,
+            $setupZip,
+            $portableZip
+          )
+          if ($blockmap) {
+            $hashTargets += $blockmap.FullName
+          }
+
+          $shaPath = Join-Path $dist "SHA256SUMS.txt"
+          $lines = foreach ($target in $hashTargets) {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $target).Hash.ToLowerInvariant()
+            "$hash *$([System.IO.Path]::GetFileName($target))"
+          }
+          Set-Content -Path $shaPath -Value $lines -Encoding utf8
+
       - name: Upload desktop assets to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -55,5 +100,8 @@ jobs:
           files: |
             desktop/dist/GitHub Copilot Chat Setup *.exe
             desktop/dist/GitHub Copilot Chat Setup *.exe.blockmap
+            desktop/dist/GitHub Copilot Chat Setup *.zip
             desktop/dist/GitHub Copilot Chat [0-9]*.exe
+            desktop/dist/GitHub Copilot Chat [0-9]*.zip
+            desktop/dist/SHA256SUMS.txt
           fail_on_unmatched_files: true

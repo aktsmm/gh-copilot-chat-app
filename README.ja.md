@@ -15,7 +15,7 @@
 
 ## ダウンロード
 
-> **すぐ試したい方は** [Releases ページ](https://github.com/aktsmm/gh-copilot-chat-app/releases) からデスクトップアプリ（Windows EXE）をダウンロードできます。
+> **すぐ試したい方は** [Releases ページ](https://github.com/aktsmm/gh-copilot-chat-app/releases) からデスクトップアプリ（Windows EXE / ZIP）をダウンロードできます。
 
 ## デモ
 
@@ -58,7 +58,7 @@
 | ------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------- |
 | `cli-release-auto-pr`    | cron (8時間) / 手動 | `github/copilot-cli` の新リリースを検出し、モデルリスト更新 → Draft PR 作成 → `@copilot` レビュー依頼 |
 | `smoke-vite-server-url`  | Pull Request        | lint, typecheck, ユニットテスト, Vite スモークテストを実行                                            |
-| `release-desktop-assets` | GitHub Release 公開 | Windows EXE インストーラーをビルドしアーティファクトをアップロード                                    |
+| `release-desktop-assets` | GitHub Release 公開 | Windows EXE / ZIP をビルドしアーティファクトをアップロード                                             |
 
 > `@copilot` レビューステップは **GitHub Copilot Coding Agent** を利用し、自動作成された Draft PR を自動レビューします。
 
@@ -114,10 +114,13 @@ copilot --version
 #### ③ インストーラーをダウンロード
 
 [Releases ページ](https://github.com/aktsmm/gh-copilot-chat-app/releases/latest) から
-`GitHub Copilot Chat Setup <バージョン>.exe` をダウンロードして実行します。
+`GitHub Copilot Chat Setup <バージョン>.zip`（推奨）または `...exe` をダウンロードします。
+
+> `NSIS Error (Installer integrity check has failed)` が出る場合は、まず ZIP を再ダウンロードして展開後の EXE を実行してください。
 
 ```
-GitHub Copilot Chat Setup x.x.x.exe  ← これをダブルクリック
+GitHub Copilot Chat Setup x.x.x.zip  ← 展開
+└ GitHub Copilot Chat Setup x.x.x.exe  ← これをダブルクリック
 ```
 
 > Windows SmartScreen が警告を出した場合は「詳細情報」→「実行」を選んでください。
@@ -216,9 +219,12 @@ npm start
 
 - 配布物（EXE）はリポジトリへコミットせず、GitHub Release Assets として添付します。
 - `Release published` 時に [release-desktop-assets.yml](.github/workflows/release-desktop-assets.yml) が自動で `npm run build:desktop` を実行し、以下を添付します。
-  - `GitHub Copilot Chat Setup <version>.exe`
-  - `GitHub Copilot Chat Setup <version>.exe.blockmap`
-  - `GitHub Copilot Chat <version>.exe`（portable）
+   - `GitHub Copilot Chat Setup <version>.exe`
+   - `GitHub Copilot Chat Setup <version>.exe.blockmap`
+   - `GitHub Copilot Chat Setup <version>.zip`
+   - `GitHub Copilot Chat <version>.exe`（portable）
+   - `GitHub Copilot Chat <version>.zip`（portable）
+   - `SHA256SUMS.txt`
 - 手動実行の場合は workflow_dispatch で `tag` を指定してください。
 
 ## プロジェクト構成

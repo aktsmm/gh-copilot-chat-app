@@ -43,6 +43,7 @@ latest*.yml
 .tmp*
 *.tmp
 tmp-*.ps1
+/output_sessions/
 
 # Local AI workflow metadata (not required for app runtime)
 AGENTS.md

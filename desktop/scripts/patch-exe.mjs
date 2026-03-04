@@ -1,5 +1,6 @@
 // desktop/scripts/patch-exe.mjs
-// Post-build: embed icon and version info into Windows EXEs via rcedit
+// Post-build: embed icon and version info into win-unpacked launcher via rcedit
+// (Portable EXE patching is intentionally avoided due integrity issues.)
 // (Needed because signAndEditExecutable=false skips rcedit in electron-builder)
 import { rcedit } from 'rcedit';
 import { existsSync, readFileSync } from 'fs';
@@ -33,10 +34,6 @@ const targets = [
   {
     path: join(dist, 'win-unpacked', `${productName}.exe`),
     desc: `${productName} Desktop`,
-  },
-  {
-    path: join(dist, `${productName} ${version}.exe`),
-    desc: `${productName} Desktop (Portable)`,
   },
 ];
 
