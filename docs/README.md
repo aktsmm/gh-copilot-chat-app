@@ -21,34 +21,32 @@ Desktop artifacts are built and published through GitHub Actions release workflo
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│           Electron Desktop App                   │
-│  ┌──────────┐    Socket.IO     ┌─────────────┐  │
-│  │  React   │ ◄──────────────► │  Express     │  │
-│  │  Client  │   streaming      │  Server      │  │
-│  └──────────┘                  └──────┬──────┘  │
-│                                       │          │
-│                              child_process       │
-│                                       │          │
-│                                ┌──────▼──────┐  │
-│                                │ Copilot CLI  │  │
-│                                │ (SDK runtime)│  │
-│                                └──────┬──────┘  │
-└───────────────────────────────────────┼─────────┘
-                                        │
-                                   GitHub API
-                                        │
-                                ┌───────▼───────┐
-                                │  GitHub       │
-                                │  Copilot      │
-                                │  (AI Models)  │
-                                └───────────────┘
+Electron Desktop App
+├── React Client (UI)  ◄── Socket.IO streaming ──►  Express Server
+│                                                        │
+│                                                   child_process
+│                                                        │
+│                                                   Copilot CLI
+│                                                   (SDK runtime)
+│                                                        │
+└────────────────────────────────────────────────── GitHub Copilot
+                                                    (AI Models)
 ```
 
 - **Client**: React 19 + TypeScript — multi-session chat UI with model/mode/tool-policy controls
 - **Server**: Express + Socket.IO — manages Copilot CLI child processes, streams responses
 - **Desktop**: Electron wrapper — packaged for Windows/macOS/Linux distribution
 - **Copilot CLI**: SDK runtime spawned per session — handles auth, model routing, tool execution
+
+## Screenshots
+
+| Advanced Mode | Simple Mode |
+|:---:|:---:|
+| ![Advanced Mode](../images/demo-chat-advanced.png) | ![Simple Mode](../images/demo-simple-mode.png) |
+
+| CI/CD Workflow Test |
+|:---:|
+| ![Workflow Test](../images/demo-workflow-test.png) |
 
 ## Responsible AI & Security Notes
 - Principle of least privilege for tool usage
