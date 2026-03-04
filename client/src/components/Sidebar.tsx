@@ -990,7 +990,8 @@ export function Sidebar({
       {/* Conversation list */}
       <nav className="flex-1 px-2 pb-4 space-y-0.5">
         {filteredConversations.map((conv) => {
-          const disableConversationActions = isGenerating && conv.id === activeId;
+          const disableConversationActions =
+            isGenerating && conv.id === activeId;
           return (
             <div
               key={conv.id}

@@ -18,6 +18,7 @@ import { config } from "../config.js";
 type ProviderConfig = NonNullable<SessionConfig["provider"]>;
 
 let clientInstance: CopilotClient | null = null;
+let clientInitPromise: Promise<CopilotClient> | null = null;
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
@@ -48,51 +49,80 @@ export async function getClient(): Promise<CopilotClient> {
     if (state === "connected") {
       return clientInstance;
     }
+  }
 
-    try {
-      const staleClient = clientInstance;
-      clientInstance = null;
-      const errors = await staleClient.stop();
-      if (errors.length > 0) {
-        console.warn("[copilot] Cleanup errors while reinitializing:", errors);
+  if (clientInitPromise) {
+    return clientInitPromise;
+  }
+
+  clientInitPromise = (async () => {
+    if (clientInstance) {
+      try {
+        const staleClient = clientInstance;
+        clientInstance = null;
+        const errors = await staleClient.stop();
+        if (errors.length > 0) {
+          console.warn(
+            "[copilot] Cleanup errors while reinitializing:",
+            errors,
+          );
+        }
+      } catch {
+        clientInstance = null;
       }
-    } catch {
-      clientInstance = null;
     }
-  }
 
-  const opts: CopilotClientOptions = {
-    autoStart: true,
-    autoRestart: true,
-  };
+    const opts: CopilotClientOptions = {
+      autoStart: true,
+      autoRestart: true,
+    };
 
-  if (config.copilot.cliPath) opts.cliPath = config.copilot.cliPath;
-  if (config.copilot.logLevel) {
-    opts.logLevel = config.copilot.logLevel as CopilotClientOptions["logLevel"];
-  }
-  if (config.github.token) opts.githubToken = config.github.token;
+    if (config.copilot.cliPath) opts.cliPath = config.copilot.cliPath;
+    if (config.copilot.logLevel) {
+      opts.logLevel = config.copilot
+        .logLevel as CopilotClientOptions["logLevel"];
+    }
+    if (config.github.token) opts.githubToken = config.github.token;
 
-  const nextClient = new CopilotClient(opts);
+    const nextClient = new CopilotClient(opts);
+    try {
+      await nextClient.start();
+      clientInstance = nextClient;
+      console.log(
+        "[copilot] Client started — state:",
+        clientInstance.getState(),
+      );
+      return clientInstance;
+    } catch (error: unknown) {
+      const errors = await nextClient.stop();
+      if (errors.length > 0) {
+        console.warn("[copilot] Cleanup errors after failed start:", errors);
+      }
+      const base = getErrorMessage(error, "Failed to start Copilot client");
+      const cliHint = opts.cliPath ? ` (cliPath: ${opts.cliPath})` : "";
+      if (error instanceof Error) {
+        throw new Error(`${base}${cliHint}`, { cause: error });
+      }
+      throw new Error(`${base}${cliHint}`);
+    }
+  })();
+
   try {
-    await nextClient.start();
-    clientInstance = nextClient;
-    console.log("[copilot] Client started — state:", clientInstance.getState());
-    return clientInstance;
-  } catch (error: unknown) {
-    const errors = await nextClient.stop();
-    if (errors.length > 0) {
-      console.warn("[copilot] Cleanup errors after failed start:", errors);
-    }
-    const base = getErrorMessage(error, "Failed to start Copilot client");
-    const cliHint = opts.cliPath ? ` (cliPath: ${opts.cliPath})` : "";
-    if (error instanceof Error) {
-      throw new Error(`${base}${cliHint}`, { cause: error });
-    }
-    throw new Error(`${base}${cliHint}`);
+    return await clientInitPromise;
+  } finally {
+    clientInitPromise = null;
   }
 }
 
 export async function stopClient(): Promise<void> {
+  if (clientInitPromise) {
+    try {
+      await clientInitPromise;
+    } catch {
+      // ignore init failure and continue cleanup
+    }
+  }
+
   if (!clientInstance) return;
   const errors = await clientInstance.stop();
   if (errors.length > 0) {

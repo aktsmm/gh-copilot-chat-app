@@ -148,9 +148,7 @@ function isValidIpv4Host(host: string): boolean {
 
 function isValidIpv6Host(host: string): boolean {
   return (
-    host.includes(":") &&
-    IPV6_HOST_PATTERN.test(host) &&
-    !host.includes(":::")
+    host.includes(":") && IPV6_HOST_PATTERN.test(host) && !host.includes(":::")
   );
 }
 
@@ -242,10 +240,9 @@ export function parseAllowedPermissionKinds(
     );
   }
 
-  const parsed = entries
-    .filter((value): value is PermissionKind =>
-      (PERMISSION_KINDS as readonly string[]).includes(value),
-    );
+  const parsed = entries.filter((value): value is PermissionKind =>
+    (PERMISSION_KINDS as readonly string[]).includes(value),
+  );
 
   return parsed.length > 0 ? [...new Set(parsed)] : ["read", "url", "mcp"];
 }
@@ -288,6 +285,7 @@ function resolveWindowsCopilotCliPath(): string {
   try {
     const output = execFileSync("where", ["copilot"], {
       encoding: "utf8",
+      timeout: 300,
       stdio: ["ignore", "pipe", "ignore"],
     });
 
@@ -351,10 +349,7 @@ const webSearchFallbackAllowedUrls = (() => {
   }
   return [...DEFAULT_WEB_SEARCH_FALLBACK_ALLOWED_URLS];
 })();
-if (
-  process.env.NODE_ENV === "production" &&
-  webSearchFallbackAllowAllUrls
-) {
+if (process.env.NODE_ENV === "production" && webSearchFallbackAllowAllUrls) {
   console.warn(
     "[config] WEB_SEARCH_FALLBACK_ALLOW_ALL_URLS=true in production is discouraged. Prefer explicit WEB_SEARCH_FALLBACK_ALLOWED_URLS.",
   );
@@ -395,17 +390,13 @@ function resolveCopilotCliPath(): string {
         return adjacentExe;
       }
 
-      const selected = resolveWindowsCopilotCliPath();
-      if (selected !== "copilot.exe") {
-        return selected;
-      }
-      return "copilot.exe";
+      return "copilot";
     }
     return envCliPath;
   }
 
   if (process.platform === "win32") {
-    return resolveWindowsCopilotCliPath();
+    return "copilot";
   }
 
   const cliFile = "copilot";
@@ -418,6 +409,15 @@ function resolveCopilotCliPath(): string {
   if (resolved) return resolved;
 
   return envCliPath && envCliPath.length > 0 ? envCliPath : "copilot";
+}
+
+let resolvedCopilotCliPath: string | undefined;
+
+function getCopilotCliPath(): string {
+  if (!resolvedCopilotCliPath) {
+    resolvedCopilotCliPath = resolveCopilotCliPath();
+  }
+  return resolvedCopilotCliPath;
 }
 
 export const config = {
@@ -447,7 +447,9 @@ export const config = {
     model: process.env.BYOK_MODEL,
   },
   copilot: {
-    cliPath: resolveCopilotCliPath(),
+    get cliPath() {
+      return getCopilotCliPath();
+    },
     logLevel: process.env.COPILOT_LOG_LEVEL ?? "info",
     enableWebSearchFallback,
     webSearchFallbackModel,

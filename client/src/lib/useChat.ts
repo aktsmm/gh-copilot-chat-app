@@ -1299,7 +1299,6 @@ export function useChat() {
     if (!ensureSocketConnected(store.activeId)) return;
 
     const sessionId = store.activeId;
-    markGeneratingState(sessionId, false);
     socketRef.current.emit("chat:abort", { sessionId }, (res: unknown) => {
       const response = toObject(res);
       if (response.ok === false) {
@@ -1314,12 +1313,7 @@ export function useChat() {
         pushSystemErrorNotice(errorDetail, sessionId, errorCode);
       }
     });
-  }, [
-    ensureSocketConnected,
-    markGeneratingState,
-    pushSystemErrorNotice,
-    store.activeId,
-  ]);
+  }, [ensureSocketConnected, pushSystemErrorNotice, store.activeId]);
 
   const deleteChat = useCallback(
     (id: string) => {

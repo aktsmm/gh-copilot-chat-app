@@ -1051,7 +1051,12 @@ export function registerSocketHandlers(
       const entry = resolveSession(sessionId);
       if (!entry) {
         ack?.(buildAckErrorPayload("Session not found", "SESSION_NOT_FOUND"));
-        emitChatError(socket, sessionId, "Session not found", "SESSION_NOT_FOUND");
+        emitChatError(
+          socket,
+          sessionId,
+          "Session not found",
+          "SESSION_NOT_FOUND",
+        );
         return;
       }
 
@@ -1060,7 +1065,10 @@ export function registerSocketHandlers(
         socket.emit("chat:idle", { sessionId });
         ack?.({ ok: true });
       } catch (abortError: unknown) {
-        const message = getErrorMessage(abortError, "Failed to abort generation");
+        const message = getErrorMessage(
+          abortError,
+          "Failed to abort generation",
+        );
         const errorCode = classifyChatErrorCode(message);
         ack?.(buildAckErrorPayload(message, errorCode));
         emitChatError(socket, sessionId, message, errorCode);

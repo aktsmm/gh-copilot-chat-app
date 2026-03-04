@@ -50,6 +50,7 @@ export function SimpleHeader({
           type="button"
           onClick={onToggleHistory}
           aria-expanded="true"
+          aria-haspopup="dialog"
           className="p-1.5 rounded-lg transition-colors bg-brand-600/20 text-brand-400"
           title={t(language, "conversations")}
           aria-label={t(language, "conversations")}
@@ -62,6 +63,7 @@ export function SimpleHeader({
           type="button"
           onClick={onToggleHistory}
           aria-expanded="false"
+          aria-haspopup="dialog"
           className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-gray-200 hover:bg-surface-dark-2"
           title={t(language, "conversations")}
           aria-label={t(language, "conversations")}
