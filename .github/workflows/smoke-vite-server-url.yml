@@ -7,6 +7,7 @@ on:
       - "server/**"
       - "desktop/**"
       - "scripts/smoke-vite-server-url.mjs"
+      - "scripts/smoke-vite-host-matrix.mjs"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/smoke-vite-server-url.yml"
@@ -43,5 +44,5 @@ jobs:
       - name: Desktop compile
         run: npm run compile -w desktop
 
-      - name: Smoke test Vite proxy and VITE_SERVER_URL
-        run: npm run smoke:vite-server-url
+      - name: Smoke test Vite proxy and VITE_SERVER_URL (localhost/127.0.0.1)
+        run: npm run smoke:vite-server-url:matrix

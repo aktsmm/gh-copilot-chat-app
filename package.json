@@ -13,6 +13,9 @@
     "sync:chat-error-code-dts": "node scripts/sync-chat-error-code-dts.mjs",
     "preflight": "node scripts/preflight.mjs",
     "smoke:vite-server-url": "node scripts/smoke-vite-server-url.mjs",
+    "smoke:vite-server-url:localhost": "node scripts/smoke-vite-host-matrix.mjs localhost",
+    "smoke:vite-server-url:127001": "node scripts/smoke-vite-host-matrix.mjs 127.0.0.1",
+    "smoke:vite-server-url:matrix": "node scripts/smoke-vite-host-matrix.mjs",
     "automation:cli-release": "node scripts/cli-release-automation.mjs",
     "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
     "dev:server": "npm run dev -w server",
@@ -36,6 +39,10 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aktsmm/gh-copilot-chat-app.git"
   },
   "license": "MIT",
   "author": "yamapan"

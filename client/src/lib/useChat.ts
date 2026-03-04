@@ -614,6 +614,8 @@ export function useChat() {
   const store = useChatStore();
   const socketRef = useRef(getSocket());
   const activeIdRef = useRef<string | null>(store.activeId);
+  const generatingSessionIdsRef = useRef<Set<string>>(new Set());
+  const disconnectNoticeDedupeRef = useRef<Map<string, number>>(new Map());
   const activeConversationModelRef = useRef<string | undefined>(
     store.active?.model,
   );
@@ -642,6 +644,22 @@ export function useChat() {
   useEffect(() => {
     preferredModelRef.current = store.preferredModel;
   }, [store.preferredModel]);
+
+  useEffect(() => {
+    const existingConversationIds = new Set(
+      store.conversations.map((conversation) => conversation.id),
+    );
+    for (const sessionId of generatingSessionIdsRef.current) {
+      if (!existingConversationIds.has(sessionId)) {
+        generatingSessionIdsRef.current.delete(sessionId);
+      }
+    }
+    for (const sessionId of disconnectNoticeDedupeRef.current.keys()) {
+      if (!existingConversationIds.has(sessionId)) {
+        disconnectNoticeDedupeRef.current.delete(sessionId);
+      }
+    }
+  }, [store.conversations]);
 
   const markFleetStartAckError = useCallback(
     (sessionId: string, errorDetail: string, errorCode?: ChatErrorCode) => {
@@ -713,7 +731,7 @@ export function useChat() {
         sessionId: targetSessionId,
       };
       if (targetSessionId) {
-        setGenerating(targetSessionId, false);
+        markGeneratingState(targetSessionId, false);
         pushMessage(targetSessionId, {
           id: msgId(),
           role: "system",
@@ -745,6 +763,18 @@ export function useChat() {
         content: `${t(languageRef.current, "systemErrorPrefix")}: ${normalizedError}`,
         timestamp: Date.now(),
       });
+    },
+    [],
+  );
+
+  const markGeneratingState = useCallback(
+    (sessionId: string, value: boolean) => {
+      setGenerating(sessionId, value);
+      if (value) {
+        generatingSessionIdsRef.current.add(sessionId);
+        return;
+      }
+      generatingSessionIdsRef.current.delete(sessionId);
     },
     [],
   );
@@ -842,7 +872,7 @@ export function useChat() {
       const data = toObject(payload);
       const sessionId = toNonEmptyString(data.sessionId);
       if (!sessionId) return;
-      setGenerating(sessionId, false);
+      markGeneratingState(sessionId, false);
     };
 
     const onToolStart = (payload: unknown) => {
@@ -880,7 +910,7 @@ export function useChat() {
             : "Unknown error";
       const sessionId = toNonEmptyString(data.sessionId);
       if (sessionId) {
-        setGenerating(sessionId, false);
+        markGeneratingState(sessionId, false);
         if (consumeFleetStartAckError(sessionId, errorDetail, errorCode)) {
           return;
         }
@@ -953,6 +983,38 @@ export function useChat() {
       });
     };
 
+    const onDisconnect = () => {
+      const generatingSessionIds = [...generatingSessionIdsRef.current];
+      if (generatingSessionIds.length === 0) return;
+
+      const now = Date.now();
+      const dedupeMap = disconnectNoticeDedupeRef.current;
+      for (const [key, expiresAt] of dedupeMap.entries()) {
+        if (expiresAt <= now) {
+          dedupeMap.delete(key);
+        }
+      }
+
+      for (const sessionId of generatingSessionIds) {
+        const expiresAt = dedupeMap.get(sessionId);
+        if (expiresAt && expiresAt > now) {
+          continue;
+        }
+        dedupeMap.set(sessionId, now + 5000);
+
+        markGeneratingState(sessionId, false);
+        pushMessage(sessionId, {
+          id: msgId(),
+          role: "system",
+          content:
+            languageRef.current === "ja"
+              ? "⚠️ サーバー接続が切断されました。再接続後にもう一度送信してください。"
+              : "⚠️ Server connection was lost. Please resend after reconnection.",
+          timestamp: Date.now(),
+        });
+      }
+    };
+
     s.on("chat:delta", onDelta);
     s.on("chat:message", onMessage);
     s.on("chat:idle", onIdle);
@@ -966,6 +1028,7 @@ export function useChat() {
     s.on("chat:compacted", onCompacted);
     s.on("chat:fleet_started", onFleetStarted);
     s.on("connect", requestCapabilities);
+    s.on("disconnect", onDisconnect);
 
     requestCapabilities();
 
@@ -983,8 +1046,9 @@ export function useChat() {
       s.off("chat:compacted", onCompacted);
       s.off("chat:fleet_started", onFleetStarted);
       s.off("connect", requestCapabilities);
+      s.off("disconnect", onDisconnect);
     };
-  }, []);
+  }, [consumeFleetStartAckError, markGeneratingState, pushSystemErrorNotice]);
 
   useEffect(() => {
     const activeModel = store.active?.model?.trim();
@@ -1109,7 +1173,7 @@ export function useChat() {
               content: userPrompt,
               timestamp: Date.now(),
             });
-            setGenerating(sessionId, true);
+            markGeneratingState(sessionId, true);
             clearStream(sessionId);
             const shouldStartFleet =
               opts.useFleetResearch ?? opts.useDeepResearchPrompt;
@@ -1138,6 +1202,7 @@ export function useChat() {
       store.preferredReasoningEffort,
       store.uiLanguage,
       emitFleetStart,
+      markGeneratingState,
     ],
   );
 
@@ -1159,7 +1224,7 @@ export function useChat() {
         timestamp: Date.now(),
       });
 
-      setGenerating(id, true);
+      markGeneratingState(id, true);
       clearStream(id);
       updateConversationRuntime(id, { mode });
 
@@ -1186,13 +1251,31 @@ export function useChat() {
       store.preferredAgentMode,
       store.uiLanguage,
       emitFleetStart,
+      markGeneratingState,
     ],
+  );
+
+  const notifySessionActionError = useCallback(
+    (
+      sessionId: string,
+      fallbackJa: string,
+      fallbackEn: string,
+      error?: string,
+    ) => {
+      const detail =
+        typeof error === "string" && error.trim().length > 0
+          ? error
+          : store.uiLanguage === "ja"
+            ? fallbackJa
+            : fallbackEn;
+      pushSystemErrorNotice(detail, sessionId);
+    },
+    [pushSystemErrorNotice, store.uiLanguage],
   );
 
   const abortGeneration = useCallback(() => {
     if (store.activeId) {
       socketRef.current.emit("chat:abort", { sessionId: store.activeId });
-      setGenerating(store.activeId, false);
     }
   }, [store.activeId]);
 
@@ -1203,6 +1286,8 @@ export function useChat() {
         { sessionId: id },
         (res: { ok?: boolean } | undefined) => {
           if (res?.ok) {
+            generatingSessionIdsRef.current.delete(id);
+            disconnectNoticeDedupeRef.current.delete(id);
             removeConversation(id);
             return;
           }
@@ -1277,10 +1362,16 @@ export function useChat() {
             updateConversationRuntime(sessionId, { mode: res.mode });
             return;
           }
+          notifySessionActionError(
+            sessionId,
+            "モードの更新に失敗しました",
+            "Failed to update mode",
+            res?.error,
+          );
         },
       );
     },
-    [],
+    [notifySessionActionError],
   );
 
   const setConversationModel = useCallback(
@@ -1296,16 +1387,35 @@ export function useChat() {
             updateConversationRuntime(sessionId, { model: res.model.trim() });
             return;
           }
+          notifySessionActionError(
+            sessionId,
+            "モデルの更新に失敗しました",
+            "Failed to update model",
+            res?.error,
+          );
         },
       );
     },
-    [],
+    [notifySessionActionError],
   );
 
   const compactActiveSession = useCallback(() => {
-    if (!store.activeId) return;
-    socketRef.current.emit("session:compact", { sessionId: store.activeId });
-  }, [store.activeId]);
+    const activeSessionId = store.activeId;
+    if (!activeSessionId) return;
+    socketRef.current.emit(
+      "session:compact",
+      { sessionId: activeSessionId },
+      (res: { ok?: boolean; error?: string } | undefined) => {
+        if (res?.ok) return;
+        notifySessionActionError(
+          activeSessionId,
+          "コンテキスト圧縮に失敗しました",
+          "Failed to compact context",
+          res?.error,
+        );
+      },
+    );
+  }, [notifySessionActionError, store.activeId]);
 
   const setConversationToolPolicy = useCallback(
     (
@@ -1342,10 +1452,16 @@ export function useChat() {
             });
             return;
           }
+          notifySessionActionError(
+            sessionId,
+            "ツール設定の更新に失敗しました",
+            "Failed to update tool settings",
+            res?.error,
+          );
         },
       );
     },
-    [],
+    [notifySessionActionError],
   );
 
   const runSkill = useCallback(

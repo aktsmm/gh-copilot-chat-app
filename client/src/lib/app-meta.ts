@@ -1,0 +1,3 @@
+export const APP_VERSION = __APP_VERSION__;
+export const APP_SIGNATURE = __APP_SIGNATURE__;
+export const APP_REPOSITORY_URL = __APP_REPOSITORY_URL__;

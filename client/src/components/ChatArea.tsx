@@ -239,27 +239,33 @@ export function ChatArea({
             <option value="autopilot">{t(language, "modeAutopilot")}</option>
           </select>
           <button
+            type="button"
             onClick={onCompact}
             className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-surface-dark-3 transition-colors"
             title={t(language, "compactContext")}
+            aria-label={t(language, "compactContext")}
           >
             <Minimize2 className="w-3.5 h-3.5" />
             {t(language, "compactContext")}
           </button>
           <button
             data-action="new-chat"
+            type="button"
             onClick={onNewChat}
             className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white
               px-2.5 py-1.5 rounded-lg hover:bg-surface-dark-3 transition-colors"
             title={t(language, "newChat")}
+            aria-label={t(language, "newChat")}
           >
             <Plus className="w-3.5 h-3.5" />
             {t(language, "newShort")}
           </button>
           <button
+            type="button"
             onClick={onSwitchToSimple}
             className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-surface-dark-3 transition-colors"
             title={t(language, "switchToSimple")}
+            aria-label={t(language, "switchToSimple")}
           >
             <Minimize2 className="w-3.5 h-3.5" />
             {t(language, "simpleMode")}
@@ -268,6 +274,9 @@ export function ChatArea({
       </header>
 
       <div className="px-4 py-2 border-b border-surface-dark-3 bg-surface-dark-1/20">
+        <div className="hidden md:block text-[10px] text-gray-500 mb-2">
+          {t(language, "headerActionHint")}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] text-gray-500">
             {t(language, "toolPolicy")}
@@ -328,6 +337,7 @@ export function ChatArea({
           </select>
 
           <button
+            type="button"
             onClick={applyToolPolicy}
             className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-dark-2 border border-surface-dark-3 text-gray-200 hover:bg-surface-dark-3"
           >
@@ -345,6 +355,9 @@ export function ChatArea({
       {/* Messages */}
       <div
         ref={messagesContainerRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
         className="flex-1 overflow-y-auto px-4 py-6 space-y-4"
       >
         {conversation.messages.length === 0 && !isGenerating && (
@@ -374,7 +387,7 @@ export function ChatArea({
 
         {/* Typing indicator when generating but no stream yet */}
         {isGenerating && !streamBuffer && activeTools.length === 0 && (
-          <TypingIndicator />
+          <TypingIndicator language={language} />
         )}
 
         <div ref={bottomRef} />

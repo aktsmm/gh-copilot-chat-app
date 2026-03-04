@@ -27,6 +27,8 @@ Modern Claude / ChatGPT-like chat interface powered by GitHub Copilot SDK.
 | :---------------------------------------------: |
 | ![Workflow Test](images/demo-workflow-test.png) |
 
+- Demo video: [docs/demo-video.mp4](docs/demo-video.mp4)
+
 ## Highlights
 
 - Real-time streaming chat via Socket.IO
@@ -123,6 +125,9 @@ npm install
 npm run preflight
 npm run dev
 ```
+
+This starts server (http://127.0.0.1:3001) and client (http://localhost:5173).
+Depending on your environment, http://127.0.0.1:5173 may refuse while localhost works; prefer the Vite Local URL shown in terminal output.
 
 ## Build
 

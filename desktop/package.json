@@ -60,6 +60,14 @@
       {
         "from": "../client/dist",
         "to": "client"
+      },
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "icon.png",
+          "icon.ico"
+        ]
       }
     ],
     "win": {

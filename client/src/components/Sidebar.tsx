@@ -34,6 +34,11 @@ import type {
   UserProfile,
 } from "../lib/types";
 import { t } from "../lib/i18n";
+import {
+  APP_REPOSITORY_URL,
+  APP_SIGNATURE,
+  APP_VERSION,
+} from "../lib/app-meta";
 
 const CUSTOM_TEMPLATES_KEY = "ghc-custom-templates-v1";
 const OUTPUT_DIR_KEY = "ghc-output-dir-v1";
@@ -276,6 +281,7 @@ export function Sidebar({
     return map;
   }, [modelCatalog]);
   const selectedModelRateLabel = modelRateMultiplierById.get(preferredModel);
+  const hasRepositoryUrl = APP_REPOSITORY_URL.trim().length > 0;
   const personaPresetText = useMemo(
     () => ({
       implementation:
@@ -403,6 +409,7 @@ export function Sidebar({
           </div>
         )}
         <button
+          type="button"
           onClick={() => setCollapsed((c) => !c)}
           aria-label={
             collapsed
@@ -428,6 +435,7 @@ export function Sidebar({
       <div className="p-2">
         <button
           data-action="new-chat"
+          type="button"
           onClick={onCreate}
           aria-label={t(language, "newChat")}
           className={`flex items-center gap-2 w-full rounded-xl border border-dashed border-surface-dark-4
@@ -464,6 +472,7 @@ export function Sidebar({
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setEditingProfile((prev) => !prev)}
                 className="text-[10px] px-2 py-1 rounded-md bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:bg-surface-dark-3"
               >
@@ -527,6 +536,7 @@ export function Sidebar({
                 />
                 <div className="flex items-center justify-end gap-1.5">
                   <button
+                    type="button"
                     onClick={() => {
                       setDraftDisplayName(userProfile.displayName);
                       setDraftHeadline(userProfile.headline ?? "");
@@ -539,6 +549,7 @@ export function Sidebar({
                     {t(language, "cancelProfile")}
                   </button>
                   <button
+                    type="button"
                     onClick={commitProfile}
                     disabled={draftDisplayName.trim().length === 0}
                     className="text-[10px] px-2 py-1 rounded-md bg-brand-600 text-white hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -689,22 +700,41 @@ export function Sidebar({
 
           <div className="border border-surface-dark-3 rounded-xl bg-surface-dark-2/40 p-2 space-y-1.5">
             <div className="flex items-center justify-between gap-1.5 px-1">
-              <button
-                onClick={() => setWorkspaceCollapsed((prev) => !prev)}
-                className="flex items-center gap-1.5 text-gray-300"
-                title={t(language, "workspace")}
-              >
-                <Wrench className="w-3.5 h-3.5 text-brand-400" />
-                <span className="text-[11px] font-medium">
-                  {t(language, "workspace")}
-                </span>
-              </button>
+              {workspaceCollapsed ? (
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceCollapsed((prev) => !prev)}
+                  aria-expanded="false"
+                  aria-controls="sidebar-workspace-panel"
+                  className="flex items-center gap-1.5 text-gray-300"
+                  title={t(language, "workspace")}
+                >
+                  <Wrench className="w-3.5 h-3.5 text-brand-400" />
+                  <span className="text-[11px] font-medium">
+                    {t(language, "workspace")}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceCollapsed((prev) => !prev)}
+                  aria-expanded="true"
+                  aria-controls="sidebar-workspace-panel"
+                  className="flex items-center gap-1.5 text-gray-300"
+                  title={t(language, "workspace")}
+                >
+                  <Wrench className="w-3.5 h-3.5 text-brand-400" />
+                  <span className="text-[11px] font-medium">
+                    {t(language, "workspace")}
+                  </span>
+                </button>
+              )}
               <ChevronDown
                 className={`w-3.5 h-3.5 text-gray-500 transition-transform ${workspaceCollapsed ? "-rotate-90" : "rotate-0"}`}
               />
             </div>
             {!workspaceCollapsed && (
-              <>
+              <div id="sidebar-workspace-panel">
                 <div className="text-xs text-gray-500 px-1">
                   {t(language, "defaultWorkspace")}
                 </div>
@@ -716,6 +746,7 @@ export function Sidebar({
                     {defaultWorkspace || "-"}
                   </div>
                   <button
+                    type="button"
                     onClick={copyWorkspace}
                     disabled={!defaultWorkspace}
                     className="p-1 rounded text-gray-400 hover:text-gray-200 hover:bg-surface-dark-3 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -741,6 +772,7 @@ export function Sidebar({
                     className="flex-1 bg-surface-dark-1 border border-surface-dark-3 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
                   />
                   <button
+                    type="button"
                     onClick={saveOutputDir}
                     disabled={outputDir.trim().length === 0}
                     className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-dark-2 border border-surface-dark-3 text-gray-200 hover:bg-surface-dark-3 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -753,24 +785,44 @@ export function Sidebar({
                     {t(language, "saved")}
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
 
           <div className="border border-surface-dark-3 rounded-xl bg-surface-dark-2/40 p-2 space-y-1.5">
             <div className="flex items-center justify-between gap-1.5 px-1">
-              <button
-                onClick={() => setTemplatesCollapsed((prev) => !prev)}
-                className="flex items-center gap-1.5 text-gray-300"
-                title={t(language, "skills")}
-              >
-                <Wrench className="w-3.5 h-3.5 text-brand-400" />
-                <span className="text-[11px] font-medium">
-                  {t(language, "skills")}
-                </span>
-              </button>
+              {templatesCollapsed ? (
+                <button
+                  type="button"
+                  onClick={() => setTemplatesCollapsed((prev) => !prev)}
+                  aria-expanded="false"
+                  aria-controls="sidebar-skills-panel"
+                  className="flex items-center gap-1.5 text-gray-300"
+                  title={t(language, "skills")}
+                >
+                  <Wrench className="w-3.5 h-3.5 text-brand-400" />
+                  <span className="text-[11px] font-medium">
+                    {t(language, "skills")}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setTemplatesCollapsed((prev) => !prev)}
+                  aria-expanded="true"
+                  aria-controls="sidebar-skills-panel"
+                  className="flex items-center gap-1.5 text-gray-300"
+                  title={t(language, "skills")}
+                >
+                  <Wrench className="w-3.5 h-3.5 text-brand-400" />
+                  <span className="text-[11px] font-medium">
+                    {t(language, "skills")}
+                  </span>
+                </button>
+              )}
               <div className="flex items-center gap-1.5">
                 <button
+                  type="button"
                   onClick={() => {
                     setTemplatesCollapsed(false);
                     setAddingTemplate(true);
@@ -786,7 +838,7 @@ export function Sidebar({
               </div>
             </div>
             {!templatesCollapsed && (
-              <>
+              <div id="sidebar-skills-panel">
                 {addingTemplate && (
                   <div className="space-y-1.5 p-1 rounded-lg border border-surface-dark-3 bg-surface-dark-1">
                     <input
@@ -816,6 +868,7 @@ export function Sidebar({
                     />
                     <div className="flex items-center justify-end gap-1.5">
                       <button
+                        type="button"
                         onClick={() => {
                           setAddingTemplate(false);
                           setTemplateTitle("");
@@ -827,6 +880,7 @@ export function Sidebar({
                         {t(language, "cancel")}
                       </button>
                       <button
+                        type="button"
                         onClick={addTemplate}
                         disabled={
                           templateTitle.trim().length === 0 ||
@@ -859,6 +913,7 @@ export function Sidebar({
                         className="flex items-center gap-1 rounded-lg border border-surface-dark-3 bg-surface-dark-1 px-1 py-1"
                       >
                         <button
+                          type="button"
                           onClick={() => onRunSkill(skill)}
                           className="flex-1 text-left px-1 py-0.5 hover:bg-surface-dark-3 rounded transition-colors"
                           title={skill.description}
@@ -879,6 +934,7 @@ export function Sidebar({
                         </button>
                         {isCustom && (
                           <button
+                            type="button"
                             onClick={() => removeTemplate(skill.id)}
                             className="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-900/20"
                             title={t(language, "delete")}
@@ -890,7 +946,7 @@ export function Sidebar({
                     );
                   })}
                 </div>
-              </>
+              </div>
             )}
           </div>
 
@@ -910,6 +966,7 @@ export function Sidebar({
                 className="flex-1 bg-surface-dark-1 border border-surface-dark-3 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
               <button
+                type="button"
                 onClick={() => {
                   const value = mcpUrl.trim();
                   if (!value) return;
@@ -1034,6 +1091,7 @@ export function Sidebar({
             </span>
             <div className="flex rounded-lg overflow-hidden border border-surface-dark-3">
               <button
+                type="button"
                 onClick={() => onThemeModeChange("dark")}
                 className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] ${
                   themeMode === "dark"
@@ -1047,6 +1105,7 @@ export function Sidebar({
                 {t(language, "themeDark")}
               </button>
               <button
+                type="button"
                 onClick={() => onThemeModeChange("light")}
                 className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] ${
                   themeMode === "light"
@@ -1068,7 +1127,9 @@ export function Sidebar({
             </span>
             <div className="flex rounded-lg overflow-hidden border border-surface-dark-3">
               <button
+                type="button"
                 onClick={() => onLanguageChange("ja")}
+                aria-label={t(language, "langJa")}
                 className={`px-2 py-1 text-[10px] ${
                   language === "ja"
                     ? "bg-brand-600 text-white"
@@ -1078,7 +1139,9 @@ export function Sidebar({
                 {t(language, "langJa")}
               </button>
               <button
+                type="button"
                 onClick={() => onLanguageChange("en")}
+                aria-label={t(language, "langEn")}
                 className={`px-2 py-1 text-[10px] ${
                   language === "en"
                     ? "bg-brand-600 text-white"
@@ -1091,6 +1154,7 @@ export function Sidebar({
           </div>
           {/* Switch to Simple UI */}
           <button
+            type="button"
             onClick={() => setUiMode("simple")}
             className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] text-gray-400 hover:text-brand-400 hover:bg-surface-dark-2 transition-colors"
           >
@@ -1098,8 +1162,26 @@ export function Sidebar({
             {t(language, "switchToSimple")}
           </button>
 
-          <div className="text-[10px] text-gray-600 text-center">
-            {t(language, "poweredBy")}
+          <div className="text-[10px] text-gray-600 text-center space-y-1">
+            <div>{t(language, "poweredBy")}</div>
+            <div>
+              {t(language, "appVersion")}: {APP_VERSION || "-"}
+            </div>
+            <div>
+              {t(language, "signature")}: {APP_SIGNATURE || "-"}
+            </div>
+            {hasRepositoryUrl ? (
+              <a
+                href={APP_REPOSITORY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-brand-400 hover:text-brand-300 break-all"
+              >
+                {t(language, "repository")}: {APP_REPOSITORY_URL}
+              </a>
+            ) : (
+              <div>{t(language, "repository")}: -</div>
+            )}
           </div>
         </div>
       )}

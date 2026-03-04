@@ -58,6 +58,9 @@ type I18nKey =
   | "langJa"
   | "langEn"
   | "poweredBy"
+  | "appVersion"
+  | "signature"
+  | "repository"
   | "rename"
   | "delete"
   | "renameTitle"
@@ -66,6 +69,7 @@ type I18nKey =
   | "emptyMessage"
   | "inputPlaceholder"
   | "inputHint"
+  | "inputHintGenerating"
   | "sendMessage"
   | "stopGenerating"
   | "researchMode"
@@ -91,6 +95,7 @@ type I18nKey =
   | "advancedMode"
   | "switchToSimple"
   | "switchToAdvanced"
+  | "headerActionHint"
   | "toolRunning"
   | "toolsRunning"
   | "conversations"
@@ -115,6 +120,7 @@ type I18nKey =
   | "artifactLinks"
   | "artifactPaths"
   | "fallbackResponseBadge"
+  | "assistantTyping"
   | "copilotPersona"
   | "copilotPersonaPlaceholder"
   | "personaPreset"
@@ -180,6 +186,9 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     langJa: "日本語",
     langEn: "English",
     poweredBy: "Powered by GitHub Copilot SDK",
+    appVersion: "バージョン",
+    signature: "署名",
+    repository: "リポジトリ",
     rename: "名前変更",
     delete: "削除",
     renameTitle: "会話タイトル",
@@ -188,6 +197,7 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     emptyMessage: "メッセージを送って始めましょう",
     inputPlaceholder: "メッセージを入力…（Shift+Enterで改行）",
     inputHint: "Enterで送信 · Shift+Enterで改行 · ↑/↓で履歴",
+    inputHintGenerating: "Enterで停止 · Shift+Enterで改行 · ↑/↓で履歴",
     sendMessage: "送信",
     stopGenerating: "生成停止",
     researchMode: "CLI Research (Fleet)",
@@ -215,6 +225,8 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     advancedMode: "Advanced",
     switchToSimple: "Simple UI に切替",
     switchToAdvanced: "Advanced UI に切替",
+    headerActionHint:
+      "操作: モード切替 / コンテキスト圧縮 / 新規チャット / Simple切替",
     toolRunning: "🔧 ツール実行中…",
     toolsRunning: "🔧 ツール実行中 ({count}件)…",
     conversations: "会話履歴",
@@ -239,6 +251,7 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     artifactLinks: "参照リンク",
     artifactPaths: "成果物パス",
     fallbackResponseBadge: "Web検索",
+    assistantTyping: "アシスタントが入力中です",
     copilotPersona: "Copilot ペルソナ",
     copilotPersonaPlaceholder:
       "例: 端的・実務重視で、最初に結論→手順→注意点の順で回答",
@@ -304,6 +317,9 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     langJa: "日本語",
     langEn: "English",
     poweredBy: "Powered by GitHub Copilot SDK",
+    appVersion: "Version",
+    signature: "Signature",
+    repository: "Repository",
     rename: "Rename",
     delete: "Delete",
     renameTitle: "Conversation title",
@@ -312,6 +328,8 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     emptyMessage: "Send a message to get started",
     inputPlaceholder: "Send a message… (Shift+Enter for new line)",
     inputHint: "Enter to send · Shift+Enter for new line · ↑/↓ history",
+    inputHintGenerating:
+      "Enter to stop · Shift+Enter for new line · ↑/↓ history",
     sendMessage: "Send message",
     stopGenerating: "Stop generating",
     researchMode: "CLI Research (Fleet)",
@@ -339,6 +357,8 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     advancedMode: "Advanced",
     switchToSimple: "Switch to Simple UI",
     switchToAdvanced: "Switch to Advanced UI",
+    headerActionHint:
+      "Actions: mode switch / compact context / new chat / switch to Simple",
     toolRunning: "🔧 Running tool…",
     toolsRunning: "🔧 Running tools ({count})…",
     conversations: "Conversations",
@@ -363,6 +383,7 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     artifactLinks: "References",
     artifactPaths: "Artifact paths",
     fallbackResponseBadge: "Web search",
+    assistantTyping: "Assistant is typing",
     copilotPersona: "Copilot persona",
     copilotPersonaPlaceholder:
       "e.g. Be concise and practical. Respond in order: conclusion, steps, caveats.",

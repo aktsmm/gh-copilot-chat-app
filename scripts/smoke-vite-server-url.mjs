@@ -3,7 +3,26 @@ import { spawn } from "node:child_process";
 
 const SERVER_PORT = Number(process.env.PORT ?? 3001);
 const CLIENT_PORT = Number(process.env.CLIENT_PORT ?? 5173);
-const HOST = "127.0.0.1";
+
+function normalizeHostCandidate(host) {
+  const trimmed = host.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+const hostCandidates = Array.from(
+  new Set([
+    typeof process.env.SMOKE_HOST === "string"
+      ? normalizeHostCandidate(process.env.SMOKE_HOST)
+      : "",
+    "localhost",
+    "127.0.0.1",
+  ]),
+).filter((host) => host.length > 0);
+const HOST = hostCandidates[0] ?? "localhost";
 const DEFAULT_TIMEOUT_MS = 45_000;
 const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
 const viteServerUrl =
@@ -29,21 +48,69 @@ function wait(ms) {
 }
 
 function isPortBusy(port) {
-  return new Promise((resolve) => {
-    const socket = net.createConnection({ host: HOST, port });
-    socket.once("connect", () => {
-      socket.destroy();
-      resolve(true);
-    });
-    socket.once("error", () => resolve(false));
-  });
+  return Promise.all(
+    hostCandidates.map(
+      (host) =>
+        new Promise((resolve) => {
+          const socket = net.createConnection({ host, port });
+          socket.once("connect", () => {
+            socket.destroy();
+            resolve(true);
+          });
+          socket.once("error", () => resolve(false));
+        }),
+    ),
+  ).then((results) => results.some(Boolean));
+}
+
+function buildUrl(host, port, path = "") {
+  const hostForUrl =
+    host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+  return `http://${hostForUrl}:${port}${path}`;
+}
+
+async function waitForHttpAcrossHosts({ port, path, description, predicate }) {
+  let reachableBaseUrl = "";
+
+  await waitFor(async () => {
+    for (const host of hostCandidates) {
+      const url = buildUrl(host, port, path);
+      try {
+        const response = await fetchText(url);
+        if (predicate(response)) {
+          reachableBaseUrl = buildUrl(host, port);
+          return true;
+        }
+      } catch {
+        // try next host candidate
+      }
+    }
+    return false;
+  }, description);
+
+  if (!reachableBaseUrl) {
+    throw new Error(`${description}: no reachable host candidate`);
+  }
+
+  return reachableBaseUrl;
+}
+
+async function waitForHttpOnBase({ baseUrl, path, description, predicate }) {
+  await waitFor(async () => {
+    try {
+      const response = await fetchText(`${baseUrl}${path}`);
+      return predicate(response);
+    } catch {
+      return false;
+    }
+  }, description);
 }
 
 async function assertPortFree(port, label) {
   const busy = await isPortBusy(port);
   if (!busy) return;
   throw new Error(
-    `${label} port ${port} is already in use. Stop the process and retry.`,
+    `${label} port ${port} is already in use on at least one host candidate (${hostCandidates.join(", ")}). Stop the process and retry.`,
   );
 }
 
@@ -172,8 +239,9 @@ function printTail(label) {
 
 async function run() {
   console.log("🔎 smoke:vite-server-url start");
-  console.log(`- server: http://${HOST}:${SERVER_PORT}`);
-  console.log(`- client: http://${HOST}:${CLIENT_PORT}`);
+  console.log(`- host candidates: ${hostCandidates.join(", ")}`);
+  console.log(`- server (preferred): http://${HOST}:${SERVER_PORT}`);
+  console.log(`- client (preferred): http://${HOST}:${CLIENT_PORT}`);
   console.log(`- VITE_SERVER_URL: ${viteServerUrl || "(unset)"}`);
 
   await assertPortFree(SERVER_PORT, "Server");
@@ -199,36 +267,41 @@ async function run() {
     ],
     "client",
     {
-      VITE_SERVER_URL: viteServerUrl,
+      VITE_SERVER_URL: viteServerUrl || buildUrl(HOST, SERVER_PORT),
     },
   );
 
   try {
-    await waitFor(async () => {
-      const { status } = await fetchText(
-        `http://${HOST}:${SERVER_PORT}/api/health`,
-      );
-      return status === 200;
-    }, "server /api/health");
+    const serverBaseUrl = await waitForHttpAcrossHosts({
+      port: SERVER_PORT,
+      path: "/api/health",
+      description: "server /api/health",
+      predicate: ({ status }) => status === 200,
+    });
 
-    await waitFor(async () => {
-      const { status } = await fetchText(`http://${HOST}:${CLIENT_PORT}/`);
-      return status === 200;
-    }, "client /");
+    const clientBaseUrl = await waitForHttpAcrossHosts({
+      port: CLIENT_PORT,
+      path: "/",
+      description: "client /",
+      predicate: ({ status }) => status === 200,
+    });
 
-    await waitFor(async () => {
-      const { status } = await fetchText(
-        `http://${HOST}:${CLIENT_PORT}/api/health`,
-      );
-      return status === 200;
-    }, "vite proxy /api/health");
+    await waitForHttpOnBase({
+      baseUrl: clientBaseUrl,
+      path: "/api/health",
+      description: "vite proxy /api/health",
+      predicate: ({ status }) => status === 200,
+    });
 
-    await waitFor(async () => {
-      const { status, body } = await fetchText(
-        buildPollingUrl(`http://${HOST}:${CLIENT_PORT}`),
-      );
-      return status === 200 && body.includes('"sid"');
-    }, "vite proxy /socket.io polling");
+    await waitForHttpOnBase({
+      baseUrl: clientBaseUrl,
+      path: `/socket.io/?EIO=4&transport=polling&t=${Date.now()}`,
+      description: "vite proxy /socket.io polling",
+      predicate: ({ status, body }) => status === 200 && body.includes('"sid"'),
+    });
+
+    console.log(`- resolved server URL: ${serverBaseUrl}`);
+    console.log(`- resolved client URL: ${clientBaseUrl}`);
 
     if (viteServerUrl) {
       await waitFor(async () => {

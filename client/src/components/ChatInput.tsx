@@ -305,56 +305,81 @@ export function ChatInput({
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t(language, "inputPlaceholder")}
+              aria-label={t(language, "inputPlaceholder")}
               rows={1}
               disabled={disabled}
               className="chat-input pr-12 min-h-[44px] max-h-[200px]"
             />
           </div>
 
-          <button
-            onClick={toggleVoiceInput}
-            disabled={disabled || !voiceSupported}
-            aria-label={t(language, "voiceInput")}
-            className={`flex-shrink-0 p-2.5 rounded-xl transition-all ${
-              isListening
-                ? "bg-brand-600 text-white"
-                : voiceSupported
+          {isListening ? (
+            <button
+              type="button"
+              onClick={toggleVoiceInput}
+              disabled={disabled || !voiceSupported}
+              aria-label={t(language, "voiceInput")}
+              aria-pressed="true"
+              className="flex-shrink-0 p-2.5 rounded-xl transition-all bg-brand-600 text-white"
+              title={t(language, "voiceInput")}
+            >
+              <MicOff className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={toggleVoiceInput}
+              disabled={disabled || !voiceSupported}
+              aria-label={t(language, "voiceInput")}
+              aria-pressed="false"
+              className={`flex-shrink-0 p-2.5 rounded-xl transition-all ${
+                voiceSupported
                   ? "bg-surface-dark-3 text-gray-300 hover:text-white"
                   : "bg-surface-dark-3 text-gray-600 cursor-not-allowed"
-            }`}
-            title={t(language, "voiceInput")}
-          >
-            {isListening ? (
-              <MicOff className="w-4 h-4" />
-            ) : (
-              <Mic className="w-4 h-4" />
-            )}
-          </button>
-
-          {onToggleResearch && (
-            <button
-              onClick={onToggleResearch}
-              disabled={disabled || !researchAvailable}
-              aria-label={t(language, "researchMode")}
-              className={`flex-shrink-0 p-2.5 rounded-xl transition-all ${
-                researchMode && researchAvailable
-                  ? "bg-brand-700/30 text-brand-200 border border-brand-600/40"
-                  : researchAvailable
-                    ? "bg-surface-dark-3 text-gray-300 hover:text-white"
-                    : "bg-surface-dark-3 text-gray-600 cursor-not-allowed"
               }`}
-              title={
-                researchAvailable
-                  ? t(language, "researchMode")
-                  : t(language, "researchUnavailable")
-              }
+              title={t(language, "voiceInput")}
             >
-              <FlaskConical className="w-4 h-4" />
+              <Mic className="w-4 h-4" />
             </button>
           )}
 
+          {onToggleResearch &&
+            (researchMode && researchAvailable ? (
+              <button
+                type="button"
+                onClick={onToggleResearch}
+                disabled={disabled || !researchAvailable}
+                aria-label={t(language, "researchMode")}
+                aria-pressed="true"
+                className="flex-shrink-0 p-2.5 rounded-xl transition-all bg-brand-700/30 text-brand-200 border border-brand-600/40"
+                title={t(language, "researchMode")}
+              >
+                <FlaskConical className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onToggleResearch}
+                disabled={disabled || !researchAvailable}
+                aria-label={t(language, "researchMode")}
+                aria-pressed="false"
+                className={`flex-shrink-0 p-2.5 rounded-xl transition-all ${
+                  researchAvailable
+                    ? "bg-surface-dark-3 text-gray-300 hover:text-white"
+                    : "bg-surface-dark-3 text-gray-600 cursor-not-allowed"
+                }`}
+                title={
+                  researchAvailable
+                    ? t(language, "researchMode")
+                    : t(language, "researchUnavailable")
+                }
+              >
+                <FlaskConical className="w-4 h-4" />
+              </button>
+            ))}
+
           {/* Send / Stop button */}
           <button
+            type="button"
             onClick={handleSend}
             disabled={disabled || (!isGenerating && !value.trim())}
             aria-label={
@@ -407,7 +432,9 @@ export function ChatInput({
             </span>
           </div>
           <span className="text-[10px] text-gray-600">
-            {t(language, "inputHint")}
+            {isGenerating
+              ? t(language, "inputHintGenerating")
+              : t(language, "inputHint")}
           </span>
         </div>
       </div>

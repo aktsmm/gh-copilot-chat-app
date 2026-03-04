@@ -4,6 +4,7 @@
  */
 
 import { Plus, PanelLeft, Settings2 } from "lucide-react";
+import type { RefObject } from "react";
 import type { UiLanguage } from "../lib/types";
 import { t } from "../lib/i18n";
 
@@ -16,6 +17,7 @@ interface Props {
   onNewChat: () => void;
   onSwitchToAdvanced: () => void;
   onToggleHistory: () => void;
+  historyToggleButtonRef?: RefObject<HTMLButtonElement | null>;
   showHistory: boolean;
   language: UiLanguage;
   quotaUsageRatePercent?: number | null;
@@ -31,6 +33,7 @@ export function SimpleHeader({
   onNewChat,
   onSwitchToAdvanced,
   onToggleHistory,
+  historyToggleButtonRef,
   showHistory,
   language,
   quotaUsageRatePercent,
@@ -40,6 +43,8 @@ export function SimpleHeader({
     <header className="flex items-center h-12 px-3 gap-2 border-b border-surface-dark-2 bg-surface-dark-1/80 backdrop-blur-sm shrink-0">
       {/* History toggle */}
       <button
+        ref={historyToggleButtonRef}
+        type="button"
         onClick={onToggleHistory}
         className={`p-1.5 rounded-lg transition-colors ${
           showHistory
@@ -68,11 +73,13 @@ export function SimpleHeader({
       </select>
 
       <span className="hidden lg:inline text-[10px] text-gray-500 whitespace-nowrap">
-        {t(language, "modelRateMultiplier")}: {activeModelRateMultiplierLabel ?? "—"}
+        {t(language, "modelRateMultiplier")}:{" "}
+        {activeModelRateMultiplierLabel ?? "—"}
       </span>
 
       <span className="hidden md:inline text-[10px] text-gray-500 whitespace-nowrap">
-        {t(language, "quotaUsageRate")}: {quotaUsageRatePercent == null
+        {t(language, "quotaUsageRate")}:{" "}
+        {quotaUsageRatePercent == null
           ? "—"
           : `${quotaUsageRatePercent}%${quotaUsageRatio ? ` (${quotaUsageRatio})` : ""}`}
       </span>
@@ -82,6 +89,7 @@ export function SimpleHeader({
       {/* New Chat */}
       <button
         data-action="new-chat"
+        type="button"
         onClick={onNewChat}
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-brand-600 hover:bg-brand-500 text-white rounded-lg transition-colors"
         title={t(language, "newChat")}
@@ -93,6 +101,7 @@ export function SimpleHeader({
 
       {/* Switch to Advanced */}
       <button
+        type="button"
         onClick={onSwitchToAdvanced}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-gray-300 hover:text-white bg-surface-dark-2 border border-surface-dark-3 hover:border-brand-500/40 transition-colors"
         title={t(language, "switchToAdvanced")}

@@ -55,20 +55,92 @@ function HistoryDrawer({
   onSelect,
   onClose,
 }: HistoryDrawerProps) {
+  const panelRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const focusable = panel.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+
+      if (event.shiftKey) {
+        if (
+          !activeElement ||
+          activeElement === first ||
+          !panel.contains(activeElement)
+        ) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (!activeElement || !panel.contains(activeElement)) {
+          event.preventDefault();
+          first.focus();
+          return;
+        }
+        if (activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
   return (
     <>
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 z-40 animate-fade-in"
         onClick={onClose}
+        aria-hidden="true"
       />
       {/* Panel */}
-      <aside className="fixed left-0 top-0 bottom-0 z-50 w-72 bg-surface-dark-1 border-r border-surface-dark-2 flex flex-col animate-slide-right">
+      <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t(language, "conversations")}
+        className="fixed left-0 top-0 bottom-0 z-50 w-72 bg-surface-dark-1 border-r border-surface-dark-2 flex flex-col animate-slide-right"
+      >
         <div className="flex items-center justify-between h-12 px-3 border-b border-surface-dark-2">
           <span className="text-sm font-medium text-gray-200">
             {t(language, "conversations")}
           </span>
           <button
+            ref={closeButtonRef}
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-surface-dark-2"
             title={t(language, "cancel")}
@@ -86,6 +158,7 @@ function HistoryDrawer({
           {conversations.map((c) => (
             <button
               key={c.id}
+              type="button"
               onClick={() => {
                 onSelect(c.id);
                 onClose();
@@ -111,7 +184,11 @@ function HistoryDrawer({
 
 export default function SimpleApp() {
   const chat = useChat();
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const historyToggleButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusedElementRef = useRef<HTMLElement | null>(null);
+  const userNearBottomRef = useRef(true);
   const [showHistory, setShowHistory] = useState(false);
   const [researchMode, setResearchMode] = useState(false);
 
@@ -170,9 +247,7 @@ export default function SimpleApp() {
     for (const model of availableModels) {
       const rateLabel = modelRateMultiplierById.get(model);
       const displayName = modelNameById.get(model) ?? model;
-      labels[model] = rateLabel
-        ? `${displayName} (${rateLabel})`
-        : displayName;
+      labels[model] = rateLabel ? `${displayName} (${rateLabel})` : displayName;
     }
     return labels;
   }, [availableModels, modelNameById, modelRateMultiplierById]);
@@ -180,10 +255,31 @@ export default function SimpleApp() {
     active?.model ?? preferredModel,
   );
 
-  // Auto-scroll
+  const isNearBottom = useCallback((): boolean => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    return distanceFromBottom <= 120;
+  }, []);
+
+  const handleMessagesScroll = useCallback(() => {
+    userNearBottomRef.current = isNearBottom();
+  }, [isNearBottom]);
+
+  // Auto-scroll when the user is already near the bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, streamBuffer, activeTools.length]);
+    if (!userNearBottomRef.current) return;
+    messagesEndRef.current?.scrollIntoView({
+      behavior: isGenerating ? "auto" : "smooth",
+    });
+  }, [
+    messages.length,
+    streamBuffer,
+    activeTools.length,
+    isGenerating,
+    isNearBottom,
+  ]);
 
   const handleSend = useCallback(
     (prompt: string) => {
@@ -219,6 +315,32 @@ export default function SimpleApp() {
     [chat, preferredModel],
   );
 
+  const closeHistoryDrawer = useCallback(() => {
+    setShowHistory(false);
+    const restoreTarget =
+      previousFocusedElementRef.current ?? historyToggleButtonRef.current;
+    previousFocusedElementRef.current = null;
+    setTimeout(() => {
+      restoreTarget?.focus();
+    }, 0);
+  }, []);
+
+  const toggleHistoryDrawer = useCallback(() => {
+    if (showHistory) {
+      closeHistoryDrawer();
+      return;
+    }
+
+    const activeElement =
+      typeof document !== "undefined" &&
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    previousFocusedElementRef.current =
+      activeElement ?? historyToggleButtonRef.current;
+    setShowHistory(true);
+  }, [closeHistoryDrawer, showHistory]);
+
   const sortedConversations = [...conversations].sort(
     (a, b) => b.lastUsed - a.lastUsed,
   );
@@ -227,6 +349,14 @@ export default function SimpleApp() {
 
   useEffect(() => {
     setResearchMode(false);
+    if (!activeId) return;
+    const timerId = window.setTimeout(() => {
+      userNearBottomRef.current = true;
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }, 0);
+    return () => {
+      window.clearTimeout(timerId);
+    };
   }, [activeId]);
 
   useEffect(() => {
@@ -252,7 +382,8 @@ export default function SimpleApp() {
         }}
         onNewChat={() => handleNewChat()}
         onSwitchToAdvanced={() => setUiMode("advanced")}
-        onToggleHistory={() => setShowHistory((p) => !p)}
+        onToggleHistory={toggleHistoryDrawer}
+        historyToggleButtonRef={historyToggleButtonRef}
         showHistory={showHistory}
         language={language}
         quotaUsageRatePercent={quotaUsageRatePercent}
@@ -269,7 +400,7 @@ export default function SimpleApp() {
           }))}
           activeId={activeId}
           onSelect={chat.switchChat}
-          onClose={() => setShowHistory(false)}
+          onClose={closeHistoryDrawer}
         />
       )}
 
@@ -285,12 +416,21 @@ export default function SimpleApp() {
       ) : (
         <>
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleMessagesScroll}
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions text"
+            className="flex-1 overflow-y-auto"
+          >
             <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
               {/* Prompt suggestions when conversation is empty */}
               {messages.length === 0 && !isGenerating && (
                 <div className="flex flex-col items-center justify-center pt-16 pb-8 space-y-6">
-                  <p className="text-sm text-gray-500">何でも聞いてください</p>
+                  <p className="text-sm text-gray-500">
+                    {t(language, "emptyMessage")}
+                  </p>
                 </div>
               )}
 
@@ -308,7 +448,7 @@ export default function SimpleApp() {
 
               {/* Typing dots */}
               {isGenerating && !streamBuffer && activeTools.length === 0 && (
-                <TypingIndicator />
+                <TypingIndicator language={language} />
               )}
 
               <div ref={messagesEndRef} />

@@ -174,14 +174,10 @@ function normalizeReasoningPreferenceForModel(modelId: string) {
 }
 
 function normalizeModels(models: string[]): string[] {
-  const normalized = models
-    .map((model) => model.trim())
-    .filter(Boolean);
+  const normalized = models.map((model) => model.trim()).filter(Boolean);
 
   const source = normalized.length > 0 ? normalized : [...DEFAULT_MODELS];
-  return [...new Set(source)].filter(
-    (model) => !shouldHideModel(model),
-  );
+  return [...new Set(source)].filter((model) => !shouldHideModel(model));
 }
 
 // ── State ───────────────────────────────────────────────────
@@ -393,13 +389,6 @@ export function upsertConversationsBulk(
         excludedTools: conv.excludedTools ?? existing.excludedTools,
         messages: existing.messages,
       });
-      if (shouldRemoveMissing) {
-        state.sessionUi.set(conv.id, {
-          isGenerating: false,
-          streamBuffer: "",
-          activeTools: [],
-        });
-      }
     } else {
       state.conversations.set(conv.id, { ...conv, messages: [] });
       state.sessionUi.set(conv.id, {

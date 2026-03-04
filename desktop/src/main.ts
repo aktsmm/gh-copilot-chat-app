@@ -16,6 +16,8 @@ import {
   nativeImage,
   dialog,
 } from "electron";
+import path from "node:path";
+import { existsSync } from "node:fs";
 import { startEmbeddedServer, stopEmbeddedServer } from "./embedded-server.js";
 
 const isDev = !app.isPackaged;
@@ -23,9 +25,47 @@ const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let serverPort = 3001;
+let serverReady = false;
 let isQuitting = false;
 
 const EXTERNAL_PROTOCOL_ALLOWLIST = new Set(["http:", "https:"]);
+
+function resolveIconPath(preferIco = false): string | undefined {
+  const iconFileNames = preferIco
+    ? ["icon.ico", "icon.png"]
+    : ["icon.png", "icon.ico"];
+
+  const appPath = app.getAppPath();
+  const baseDirs = [
+    path.join(process.resourcesPath, "assets"),
+    process.resourcesPath,
+    path.join(appPath, "assets"),
+    path.resolve(appPath, "../assets"),
+    path.resolve(appPath, "../../assets"),
+  ];
+
+  for (const baseDir of baseDirs) {
+    for (const iconFileName of iconFileNames) {
+      const iconPath = path.join(baseDir, iconFileName);
+      if (existsSync(iconPath)) {
+        return iconPath;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function loadTrayIcon() {
+  const trayIconPath = resolveIconPath(process.platform === "win32");
+  if (trayIconPath) {
+    const image = nativeImage.createFromPath(trayIconPath);
+    if (!image.isEmpty()) {
+      return image;
+    }
+  }
+  return nativeImage.createEmpty();
+}
 
 function isSafeExternalUrl(url: string): boolean {
   try {
@@ -50,7 +90,64 @@ if (!gotTheLock) {
 }
 
 // ── Create the main window ──────────────────────────────────
+function getBootHtml(): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Copilot Chat</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0d1117;
+        color: #9ca3af;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .box {
+        text-align: center;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 9999px;
+        margin: 0 auto 10px;
+        background: #60a5fa;
+        animation: pulse 1.1s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.4; transform: scale(0.9); }
+        50% { opacity: 1; transform: scale(1.1); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box" role="status" aria-live="polite">
+      <div class="dot"></div>
+      <div>Starting GitHub Copilot Chat…</div>
+    </div>
+  </body>
+</html>`;
+}
+
+function loadBootScreen() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const html = encodeURIComponent(getBootHtml());
+  void mainWindow.loadURL(`data:text/html;charset=utf-8,${html}`);
+}
+
+function loadMainApp() {
+  if (!mainWindow || mainWindow.isDestroyed() || !serverReady) return;
+  void mainWindow.loadURL(`http://127.0.0.1:${serverPort}`);
+}
+
 function createWindow() {
+  const windowIconPath = resolveIconPath(process.platform === "win32");
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -59,6 +156,7 @@ function createWindow() {
     title: "GitHub Copilot Chat",
     backgroundColor: "#0d1117",
     show: false,
+    icon: windowIconPath,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -66,8 +164,11 @@ function createWindow() {
     },
   });
 
-  // Load the server URL
-  mainWindow.loadURL(`http://127.0.0.1:${serverPort}`);
+  if (serverReady) {
+    loadMainApp();
+  } else {
+    loadBootScreen();
+  }
 
   // Show when ready to prevent white flash
   mainWindow.once("ready-to-show", () => {
@@ -83,9 +184,14 @@ function createWindow() {
   });
 
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    const appOrigin = `http://127.0.0.1:${serverPort}`;
-    if (url.startsWith(appOrigin)) {
-      return;
+    const appOrigin = new URL(`http://127.0.0.1:${serverPort}`).origin;
+    try {
+      const target = new URL(url);
+      if (target.origin === appOrigin) {
+        return;
+      }
+    } catch {
+      // Fall through and block malformed URLs.
     }
     event.preventDefault();
     if (isSafeExternalUrl(url)) {
@@ -169,14 +275,14 @@ function createMenu() {
               title: "GitHub Copilot Chat Desktop",
               message: `GitHub Copilot Chat Desktop v${version}`,
               detail:
-                "Powered by GitHub Copilot SDK\nhttps://github.com/github/copilot-sdk",
+                "Powered by GitHub Copilot SDK\nhttps://github.com/aktsmm/gh-copilot-chat-app",
             });
           },
         },
         {
           label: "GitHub Repository",
           click: () =>
-            shell.openExternal("https://github.com/github/copilot-sdk"),
+            shell.openExternal("https://github.com/aktsmm/gh-copilot-chat-app"),
         },
       ],
     },
@@ -187,10 +293,7 @@ function createMenu() {
 
 // ── System tray ─────────────────────────────────────────────
 function createTray() {
-  // Use a simple 16x16 icon (create programmatically for now)
-  const icon = nativeImage.createFromDataURL(
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAADpJREFUOE9jZKAQMFKon2HUAAYGhtEwIBgG/xkYGP4T4wJ8YfCfgYHhP7FhQNAF+MIAXxgMjDAAAIhUGoF52GXnAAAAAElFTkSuQmCC",
-  );
+  const icon = loadTrayIcon();
   tray = new Tray(icon);
 
   const contextMenu = Menu.buildFromTemplate([
@@ -218,9 +321,15 @@ function createTray() {
 
 // ── App lifecycle ──────────────────────────────────────────
 app.on("ready", async () => {
+  createWindow();
+  createMenu();
+  createTray();
+
   try {
     serverPort = await startEmbeddedServer();
+    serverReady = true;
     console.log(`[electron] Embedded server on port ${serverPort}`);
+    loadMainApp();
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error("[electron] Failed to start server:", err);
@@ -231,10 +340,6 @@ app.on("ready", async () => {
     app.quit();
     return;
   }
-
-  createWindow();
-  createMenu();
-  createTray();
 
   // Global shortcut to toggle window
   globalShortcut.register("CmdOrCtrl+Shift+C", () => {
