@@ -54,3 +54,12 @@ test("selectWindowsCopilotCliCandidate returns undefined when no candidates", ()
 
   assert.equal(selected, undefined);
 });
+
+test("selectWindowsCopilotCliCandidate ignores non-exe candidates", () => {
+  const selected = selectWindowsCopilotCliCandidate([
+    "C:\\tools\\copilot.ps1",
+    "C:\\Users\\dev\\AppData\\Roaming\\npm\\copilot.cmd",
+  ]);
+
+  assert.equal(selected, undefined);
+});

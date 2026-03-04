@@ -269,25 +269,57 @@ export function selectWindowsCopilotCliCandidate(
     return anyExe;
   }
 
-  const nonNodeModulesNonShim = normalizedCandidates.find(
-    (candidate) =>
-      !includesNodeModulesBinPath(candidate) &&
-      !isWindowsCommandShim(candidate),
-  );
-  if (nonNodeModulesNonShim) {
-    return nonNodeModulesNonShim;
+  return undefined;
+}
+
+function resolveWindowsNpmGlobalCopilotCliPath(): string | undefined {
+  const appData = process.env.APPDATA?.trim();
+  if (!appData) {
+    return undefined;
   }
 
-  return undefined;
+  const npmGlobalDir = path.join(appData, "npm", "node_modules");
+  const candidates = [
+    path.join(npmGlobalDir, "@github", "copilot-win32-x64", "copilot.exe"),
+    path.join(
+      npmGlobalDir,
+      "@github",
+      "copilot-win32-arm64",
+      "copilot.exe",
+    ),
+    path.join(
+      npmGlobalDir,
+      "@github",
+      "copilot",
+      "prebuilds",
+      "win32-x64",
+      "copilot.exe",
+    ),
+    path.join(
+      npmGlobalDir,
+      "@github",
+      "copilot",
+      "prebuilds",
+      "win32-arm64",
+      "copilot.exe",
+    ),
+  ];
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
 function resolveWindowsCopilotCliPath(): string {
   const whereCommands: Array<{ command: string; args: string[] }> = [
+    { command: "where", args: ["copilot.exe"] },
     { command: "where", args: ["copilot"] },
   ];
 
   const systemRoot = process.env.SystemRoot?.trim();
   if (systemRoot) {
+    whereCommands.push({
+      command: path.join(systemRoot, "System32", "where.exe"),
+      args: ["copilot.exe"],
+    });
     whereCommands.push({
       command: path.join(systemRoot, "System32", "where.exe"),
       args: ["copilot"],
@@ -298,13 +330,13 @@ function resolveWindowsCopilotCliPath(): string {
     try {
       const output = execFileSync(whereCommand.command, whereCommand.args, {
         encoding: "utf8",
-        timeout: 300,
+        timeout: 1500,
         stdio: ["ignore", "pipe", "ignore"],
       });
 
       const candidates = output
         .split(/\r?\n/g)
-        .map((value) => value.trim())
+        .map((value) => value.trim().replace(/^"|"$/g, ""))
         .filter((value) => value.length > 0);
 
       const selected = selectWindowsCopilotCliCandidate(candidates);
@@ -348,6 +380,11 @@ function resolveWindowsCopilotCliPath(): string {
     } catch {
       // fallback below
     }
+  }
+
+  const npmGlobalCliPath = resolveWindowsNpmGlobalCopilotCliPath();
+  if (npmGlobalCliPath) {
+    return npmGlobalCliPath;
   }
 
   return "copilot.exe";
