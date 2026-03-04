@@ -58,7 +58,7 @@
 | ------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------- |
 | `cli-release-auto-pr`    | cron (8時間) / 手動 | `github/copilot-cli` の新リリースを検出し、モデルリスト更新 → Draft PR 作成 → `@copilot` レビュー依頼 |
 | `smoke-vite-server-url`  | Pull Request        | lint, typecheck, ユニットテスト, Vite スモークテストを実行                                            |
-| `release-desktop-assets` | GitHub Release 公開 | Windows ZIP をビルドしアーティファクトをアップロード                                                     |
+| `release-desktop-assets` | GitHub Release 公開 | Windows ZIP をビルドしアーティファクトをアップロード                                                  |
 
 > `@copilot` レビューステップは **GitHub Copilot Coding Agent** を利用し、自動作成された Draft PR を自動レビューします。
 
@@ -219,9 +219,10 @@ npm start
 
 - 配布物（EXE）はリポジトリへコミットせず、GitHub Release Assets として添付します。
 - `Release published` 時に [release-desktop-assets.yml](.github/workflows/release-desktop-assets.yml) が自動で `npm run build:desktop` を実行し、以下を添付します。
-   - `GitHub Copilot Chat Setup <version>.zip`
-   - `GitHub Copilot Chat <version>.zip`（portable）
-   - `SHA256SUMS.txt`
+  - `GitHub Copilot Chat Setup <version>.zip`
+  - `GitHub Copilot Chat <version>.zip`（portable）
+  - `SHA256SUMS.txt`
+- workflow はリリース `tag`（先頭 `v` を除く）と各 workspace の `package.json` version が一致することを検証します。
 - 手動実行の場合は workflow_dispatch で `tag` を指定してください。
 
 ## プロジェクト構成

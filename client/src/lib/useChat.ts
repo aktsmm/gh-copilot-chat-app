@@ -56,7 +56,6 @@ const FALLBACK_MODELS = [
 ];
 
 const REASONING_EFFORTS: ReasoningEffort[] = ["low", "medium", "high", "xhigh"];
-const RATE_MULTIPLIER_TOLERANCE = 0.01;
 
 type ChatRole = ChatMessage["role"];
 
@@ -88,20 +87,22 @@ function isReasoningEffort(value: unknown): value is ReasoningEffort {
   return REASONING_EFFORTS.includes(value as ReasoningEffort);
 }
 
-function toFinitePositiveNumber(value: unknown): number | undefined {
+function toFiniteNonNegativeNumber(value: unknown): number | undefined {
   if (typeof value === "string") {
-    const compact = value.trim().toLowerCase();
+    const compact = value.trim();
     if (!compact) return undefined;
-    const stripped = compact.replace(/^x\s*/, "").replace(/\s*x$/, "");
-    const parsed = Number(stripped);
-    if (Number.isFinite(parsed) && parsed > 0) {
+    const match = /^(?:x\s*)?(\d+(?:\.\d+)?)\s*x?$/i.exec(compact);
+    if (!match) return undefined;
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed) && parsed >= 0) {
       return parsed;
     }
+    return undefined;
   }
 
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) return undefined;
-  return numeric;
+  if (typeof value !== "number") return undefined;
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  return value;
 }
 
 function isAgentMode(value: unknown): value is AgentMode {
@@ -163,13 +164,15 @@ function normalizeModelCatalog(payload: unknown): ModelInfoLite[] {
         (item as Record<string, unknown>).rate_multiplier ??
         (item as Record<string, unknown>).rateLimitMultiplier ??
         (item as Record<string, unknown>).rate_limit_multiplier ??
+        (item as Record<string, unknown>).multiplier ??
         (item as Record<string, unknown>).relativeCost ??
         (item as Record<string, unknown>).relative_cost ??
         billing?.rateMultiplier ??
         billing?.rate_multiplier ??
+        billing?.multiplier ??
         billing?.relativeCost ??
         billing?.relative_cost;
-      const rateMultiplier = toFinitePositiveNumber(rawRateMultiplier);
+      const rateMultiplier = toFiniteNonNegativeNumber(rawRateMultiplier);
 
       return {
         id: rawId,
@@ -200,67 +203,7 @@ function normalizeModelCatalog(payload: unknown): ModelInfoLite[] {
     }
   }
 
-  for (const fallback of FALLBACK_MODELS) {
-    if (!byId.has(fallback)) {
-      byId.set(fallback, {
-        id: fallback,
-        name: fallback,
-        reasoningSupported: false,
-      });
-    }
-  }
-
   return [...byId.values()];
-}
-
-function resolveExpectedRateMultiplier(modelId: string): number | undefined {
-  const normalized = modelId.trim().toLowerCase();
-  if (!normalized) return undefined;
-
-  if (normalized === "gpt-5" || normalized.startsWith("gpt-5.")) return 1;
-  if (normalized === "gpt-4.1" || normalized.startsWith("gpt-4.1")) return 1;
-  if (
-    normalized === "gpt-5.3-codex" ||
-    normalized.startsWith("gpt-5.3-codex")
-  ) {
-    return 1;
-  }
-  if (
-    normalized === "claude-sonnet-4.6" ||
-    normalized.startsWith("claude-sonnet-4.6")
-  ) {
-    return 1;
-  }
-
-  return undefined;
-}
-
-function buildModelRateCheckSignature(catalog: ModelInfoLite[]): string | null {
-  const missingExpectedRates: string[] = [];
-  const mismatchedRates: string[] = [];
-
-  for (const model of catalog) {
-    const expected = resolveExpectedRateMultiplier(model.id);
-    if (expected == null) continue;
-
-    if (model.rateMultiplier == null) {
-      missingExpectedRates.push(model.id);
-      continue;
-    }
-
-    if (Math.abs(model.rateMultiplier - expected) > RATE_MULTIPLIER_TOLERANCE) {
-      mismatchedRates.push(`${model.id}:${model.rateMultiplier}`);
-    }
-  }
-
-  if (missingExpectedRates.length === 0 && mismatchedRates.length === 0) {
-    return null;
-  }
-
-  return JSON.stringify({
-    missingExpectedRates: [...missingExpectedRates].sort(),
-    mismatchedRates: [...mismatchedRates].sort(),
-  });
 }
 
 function normalizeTools(payload: unknown): ToolInfoLite[] {
@@ -676,7 +619,6 @@ export function useChat() {
   );
   const languageRef = useRef(store.uiLanguage);
   const preferredModelRef = useRef(store.preferredModel);
-  const modelRateCheckSignatureRef = useRef<string | null>(null);
   const fleetStartAckErrorDedupeRef = useRef<Map<string, number>>(new Map());
   const systemNoticeIdRef = useRef<string | null>(null);
   const lastSystemErrorRef = useRef<{
@@ -815,21 +757,6 @@ export function useChat() {
       s.emit("models:list", {}, (models: unknown) => {
         const normalized = normalizeModelCatalog(models);
         setModelCatalog(normalized);
-
-        if (import.meta.env.PROD) return;
-        const signature = buildModelRateCheckSignature(normalized);
-        if (!signature || signature === modelRateCheckSignatureRef.current) {
-          return;
-        }
-
-        modelRateCheckSignatureRef.current = signature;
-        console.warn(
-          "[model-rate-check] Expected multiplier mismatch/missing detected:",
-          JSON.parse(signature) as {
-            missingExpectedRates: string[];
-            mismatchedRates: string[];
-          },
-        );
       });
     };
 

@@ -133,6 +133,11 @@ function includesNodeModulesBinPath(candidate: string): boolean {
     .includes("\\node_modules\\.bin\\");
 }
 
+function isWindowsCommandShim(candidate: string): boolean {
+  const lower = candidate.toLowerCase();
+  return lower.endsWith(".cmd") || lower.endsWith(".bat");
+}
+
 function isValidIpv4Host(host: string): boolean {
   if (!IPV4_HOST_PATTERN.test(host)) return false;
   return host.split(".").every((segment) => {
@@ -263,15 +268,17 @@ export function selectWindowsCopilotCliCandidate(
   const anyExe = normalizedCandidates.find((candidate) =>
     candidate.toLowerCase().endsWith(".exe"),
   );
-  const nonNodeModules = normalizedCandidates.find(
-    (candidate) => !includesNodeModulesBinPath(candidate),
-  );
-  if (nonNodeModules) {
-    return nonNodeModules;
-  }
-
   if (anyExe) {
     return anyExe;
+  }
+
+  const nonNodeModulesNonShim = normalizedCandidates.find(
+    (candidate) =>
+      !includesNodeModulesBinPath(candidate) &&
+      !isWindowsCommandShim(candidate),
+  );
+  if (nonNodeModulesNonShim) {
+    return nonNodeModulesNonShim;
   }
 
   return undefined;
@@ -297,7 +304,7 @@ function resolveWindowsCopilotCliPath(): string {
     // fallback below
   }
 
-  return "copilot";
+  return "copilot.exe";
 }
 
 const corsOrigins = parseCorsOrigins(process.env.CORS_ORIGINS);
@@ -382,6 +389,18 @@ if (requireAccessToken && !accessToken) {
 function resolveCopilotCliPath(): string {
   const envCliPath = process.env.COPILOT_CLI_PATH?.trim();
   if (envCliPath && envCliPath.length > 0) {
+    if (process.platform === "win32" && isWindowsCommandShim(envCliPath)) {
+      const adjacentExe = envCliPath.replace(/\.(cmd|bat)$/i, ".exe");
+      if (adjacentExe !== envCliPath && fs.existsSync(adjacentExe)) {
+        return adjacentExe;
+      }
+
+      const selected = resolveWindowsCopilotCliPath();
+      if (selected !== "copilot.exe") {
+        return selected;
+      }
+      return "copilot.exe";
+    }
     return envCliPath;
   }
 

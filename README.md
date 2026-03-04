@@ -158,6 +158,7 @@ Expected installer output:
   - GitHub Copilot Chat Setup <version>.zip
   - GitHub Copilot Chat <version>.zip (portable)
   - SHA256SUMS.txt
+- The workflow validates that release `tag` (without leading `v`) matches all workspace `package.json` versions.
 - For manual execution, use workflow_dispatch and provide `tag`.
 
 ## Notes

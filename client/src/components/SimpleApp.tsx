@@ -33,16 +33,7 @@ function isResearchSupportedModel(modelId: string): boolean {
 
 function formatRateMultiplier(multiplier: number): string {
   const rounded = Number(multiplier.toFixed(2));
-  return `x${rounded}`;
-}
-
-function defaultRateMultiplierLabel(modelId: string): string | null {
-  const normalized = modelId.trim().toLowerCase();
-  if (!normalized) return null;
-  if (normalized.startsWith("gpt-")) {
-    return formatRateMultiplier(1);
-  }
-  return null;
+  return `${rounded}x`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -162,23 +153,32 @@ export default function SimpleApp() {
   const modelRateMultiplierById = useMemo(() => {
     const map = new Map<string, string>();
     for (const model of modelCatalog) {
-      if (!model.rateMultiplier) continue;
+      if (model.rateMultiplier == null) continue;
       map.set(model.id, formatRateMultiplier(model.rateMultiplier));
+    }
+    return map;
+  }, [modelCatalog]);
+  const modelNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const model of modelCatalog) {
+      map.set(model.id, model.name || model.id);
     }
     return map;
   }, [modelCatalog]);
   const modelOptionLabels = useMemo(() => {
     const labels: Record<string, string> = {};
     for (const model of availableModels) {
-      const rateLabel =
-        modelRateMultiplierById.get(model) ?? defaultRateMultiplierLabel(model);
-      labels[model] = rateLabel ? `${model} (${rateLabel})` : model;
+      const rateLabel = modelRateMultiplierById.get(model);
+      const displayName = modelNameById.get(model) ?? model;
+      labels[model] = rateLabel
+        ? `${displayName} (${rateLabel})`
+        : displayName;
     }
     return labels;
-  }, [availableModels, modelRateMultiplierById]);
-  const activeModelRateMultiplierLabel =
-    modelRateMultiplierById.get(active?.model ?? preferredModel) ??
-    defaultRateMultiplierLabel(active?.model ?? preferredModel);
+  }, [availableModels, modelNameById, modelRateMultiplierById]);
+  const activeModelRateMultiplierLabel = modelRateMultiplierById.get(
+    active?.model ?? preferredModel,
+  );
 
   // Auto-scroll
   useEffect(() => {

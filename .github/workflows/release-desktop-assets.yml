@@ -32,16 +32,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Clean desktop dist
-        shell: pwsh
-        run: |
-          if (Test-Path "desktop/dist") {
-            Remove-Item "desktop/dist" -Recurse -Force
-          }
-
-      - name: Build desktop distributables
-        run: npm run build:desktop
-
       - name: Resolve release tag
         id: release_tag
         shell: pwsh
@@ -53,27 +43,70 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($tag)) {
             throw "Release tag is required."
           }
+
+          $version = $tag -replace '^v', ''
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "Failed to derive version from tag: $tag"
+          }
+
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Validate workspace versions against tag
+        shell: pwsh
+        run: |
+          $expected = "${{ steps.release_tag.outputs.version }}"
+          $rootVersion = (Get-Content "package.json" | ConvertFrom-Json).version
+          $clientVersion = (Get-Content "client/package.json" | ConvertFrom-Json).version
+          $serverVersion = (Get-Content "server/package.json" | ConvertFrom-Json).version
+          $desktopVersion = (Get-Content "desktop/package.json" | ConvertFrom-Json).version
+
+          $mismatch = @()
+          if ($rootVersion -ne $expected) { $mismatch += "root=$rootVersion" }
+          if ($clientVersion -ne $expected) { $mismatch += "client=$clientVersion" }
+          if ($serverVersion -ne $expected) { $mismatch += "server=$serverVersion" }
+          if ($desktopVersion -ne $expected) { $mismatch += "desktop=$desktopVersion" }
+
+          if ($mismatch.Count -gt 0) {
+            throw "Version mismatch. expected=$expected actual=[$($mismatch -join ', ')]"
+          }
+
+      - name: Clean desktop dist
+        shell: pwsh
+        run: |
+          if (Test-Path "desktop/dist") {
+            Remove-Item "desktop/dist" -Recurse -Force
+          }
+
+      - name: Build desktop distributables
+        run: npm run build:desktop
 
       - name: Create ZIP bundles and checksums
         shell: pwsh
         run: |
           $dist = Resolve-Path "desktop/dist"
+          $version = "${{ steps.release_tag.outputs.version }}"
 
-          $setupExe = Get-ChildItem "$dist/GitHub Copilot Chat Setup *.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          $portableExe = Get-ChildItem "$dist/GitHub Copilot Chat [0-9]*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $setupExe = Join-Path $dist ("GitHub Copilot Chat Setup $version.exe")
+          $portableExe = Join-Path $dist ("GitHub Copilot Chat $version.exe")
 
-          if (-not $setupExe) { throw "Setup EXE not found under desktop/dist" }
-          if (-not $portableExe) { throw "Portable EXE not found under desktop/dist" }
+          if (-not (Test-Path -LiteralPath $setupExe)) {
+            $candidates = Get-ChildItem -Path "$dist/GitHub Copilot Chat Setup *.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+            throw "Setup EXE not found for version '$version'. Found: $($candidates -join ', ')"
+          }
+          if (-not (Test-Path -LiteralPath $portableExe)) {
+            $candidates = Get-ChildItem -Path "$dist/GitHub Copilot Chat *.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+            throw "Portable EXE not found for version '$version'. Found: $($candidates -join ', ')"
+          }
 
-          $setupZip = Join-Path $dist ($setupExe.BaseName + ".zip")
-          $portableZip = Join-Path $dist ($portableExe.BaseName + ".zip")
+          $setupZip = Join-Path $dist ("GitHub Copilot Chat Setup $version.zip")
+          $portableZip = Join-Path $dist ("GitHub Copilot Chat $version.zip")
 
           if (Test-Path $setupZip) { Remove-Item $setupZip -Force }
           if (Test-Path $portableZip) { Remove-Item $portableZip -Force }
 
-          Compress-Archive -LiteralPath $setupExe.FullName -DestinationPath $setupZip -CompressionLevel Optimal
-          Compress-Archive -LiteralPath $portableExe.FullName -DestinationPath $portableZip -CompressionLevel Optimal
+          Compress-Archive -LiteralPath $setupExe -DestinationPath $setupZip -CompressionLevel Optimal
+          Compress-Archive -LiteralPath $portableExe -DestinationPath $portableZip -CompressionLevel Optimal
 
           $hashTargets = @(
             $setupZip,
@@ -92,7 +125,7 @@ jobs:
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           files: |
-            desktop/dist/GitHub Copilot Chat Setup *.zip
-            desktop/dist/GitHub Copilot Chat [0-9]*.zip
+            desktop/dist/GitHub Copilot Chat Setup ${{ steps.release_tag.outputs.version }}.zip
+            desktop/dist/GitHub Copilot Chat ${{ steps.release_tag.outputs.version }}.zip
             desktop/dist/SHA256SUMS.txt
           fail_on_unmatched_files: true

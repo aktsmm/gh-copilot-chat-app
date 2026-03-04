@@ -43,16 +43,7 @@ const CUSTOM_TEMPLATE_PREFIX = "custom-template-";
 
 function formatRateMultiplier(multiplier: number): string {
   const rounded = Number(multiplier.toFixed(2));
-  return `x${rounded}`;
-}
-
-function defaultRateMultiplierLabel(modelId: string): string | null {
-  const normalized = modelId.trim().toLowerCase();
-  if (!normalized) return null;
-  if (normalized.startsWith("gpt-")) {
-    return formatRateMultiplier(1);
-  }
-  return null;
+  return `${rounded}x`;
 }
 
 interface SidebarProps {
@@ -269,17 +260,22 @@ export function Sidebar({
   });
 
   const reasoningOptionsUnique = Array.from(new Set(reasoningOptions));
+  const modelNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const model of modelCatalog) {
+      map.set(model.id, model.name || model.id);
+    }
+    return map;
+  }, [modelCatalog]);
   const modelRateMultiplierById = useMemo(() => {
     const map = new Map<string, string>();
     for (const model of modelCatalog) {
-      if (!model.rateMultiplier) continue;
+      if (model.rateMultiplier == null) continue;
       map.set(model.id, formatRateMultiplier(model.rateMultiplier));
     }
     return map;
   }, [modelCatalog]);
-  const selectedModelRateLabel =
-    modelRateMultiplierById.get(preferredModel) ??
-    defaultRateMultiplierLabel(preferredModel);
+  const selectedModelRateLabel = modelRateMultiplierById.get(preferredModel);
   const personaPresetText = useMemo(
     () => ({
       implementation:
@@ -571,11 +567,9 @@ export function Sidebar({
             >
               {availableModels.map((model) => (
                 <option key={model} value={model}>
-                  {model}
+                  {modelNameById.get(model) ?? model}
                   {(() => {
-                    const rateLabel =
-                      modelRateMultiplierById.get(model) ??
-                      defaultRateMultiplierLabel(model);
+                    const rateLabel = modelRateMultiplierById.get(model);
                     return rateLabel ? ` (${rateLabel})` : "";
                   })()}
                 </option>

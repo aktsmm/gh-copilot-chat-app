@@ -163,10 +163,11 @@ function createMenu() {
         {
           label: "About GitHub Copilot Chat",
           click: () => {
+            const version = app.getVersion();
             dialog.showMessageBox({
               type: "info",
               title: "GitHub Copilot Chat Desktop",
-              message: "GitHub Copilot Chat Desktop v1.0.0",
+              message: `GitHub Copilot Chat Desktop v${version}`,
               detail:
                 "Powered by GitHub Copilot SDK\nhttps://github.com/github/copilot-sdk",
             });

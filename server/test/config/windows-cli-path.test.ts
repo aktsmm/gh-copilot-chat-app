@@ -22,16 +22,13 @@ test("selectWindowsCopilotCliCandidate falls back to any exe", () => {
   assert.equal(selected, "C:\\repo\\node_modules\\.bin\\copilot.exe");
 });
 
-test("selectWindowsCopilotCliCandidate falls back to non-node_modules command", () => {
+test("selectWindowsCopilotCliCandidate returns undefined when only cmd candidates are available", () => {
   const selected = selectWindowsCopilotCliCandidate([
     "C:\\repo\\node_modules\\.bin\\copilot.cmd",
     "C:\\Users\\dev\\AppData\\Local\\GitHubCopilot\\copilot.cmd",
   ]);
 
-  assert.equal(
-    selected,
-    "C:\\Users\\dev\\AppData\\Local\\GitHubCopilot\\copilot.cmd",
-  );
+  assert.equal(selected, undefined);
 });
 
 test("selectWindowsCopilotCliCandidate handles forward-slash node_modules paths", () => {
@@ -43,16 +40,13 @@ test("selectWindowsCopilotCliCandidate handles forward-slash node_modules paths"
   assert.equal(selected, "C:/Program Files/GitHub Copilot/copilot.exe");
 });
 
-test("selectWindowsCopilotCliCandidate prefers non-node_modules command over node_modules exe", () => {
+test("selectWindowsCopilotCliCandidate prefers node_modules exe over cmd shim", () => {
   const selected = selectWindowsCopilotCliCandidate([
     "C:\\repo\\node_modules\\.bin\\copilot.exe",
     "C:\\Users\\dev\\AppData\\Local\\GitHubCopilot\\copilot.cmd",
   ]);
 
-  assert.equal(
-    selected,
-    "C:\\Users\\dev\\AppData\\Local\\GitHubCopilot\\copilot.cmd",
-  );
+  assert.equal(selected, "C:\\repo\\node_modules\\.bin\\copilot.exe");
 });
 
 test("selectWindowsCopilotCliCandidate returns undefined when no candidates", () => {

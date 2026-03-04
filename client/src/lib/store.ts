@@ -31,10 +31,8 @@ const DEFAULT_MODELS = [
 ] as const;
 
 function shouldHideModel(modelId: string): boolean {
-  const normalized = modelId.trim().toLowerCase();
-  if (!normalized) return true;
-  if (normalized === "o3" || normalized.startsWith("o3-")) return true;
-  return /(?:^|[-_])mini(?:$|[-_])/.test(normalized);
+  const normalized = modelId.trim();
+  return normalized.length === 0;
 }
 
 interface PersistedSettings {
@@ -178,89 +176,12 @@ function normalizeReasoningPreferenceForModel(modelId: string) {
 function normalizeModels(models: string[]): string[] {
   const normalized = models
     .map((model) => model.trim())
-    .filter(Boolean)
-    .map((model) => (model.toLowerCase() === "gpt-5.1" ? "gpt-5" : model));
+    .filter(Boolean);
 
-  const unique = [...new Set([...normalized, ...DEFAULT_MODELS])].filter(
+  const source = normalized.length > 0 ? normalized : [...DEFAULT_MODELS];
+  return [...new Set(source)].filter(
     (model) => !shouldHideModel(model),
   );
-  const gpt5LatestStableMinor = unique.reduce((latest, model) => {
-    const stableMatch = /^gpt-5\.(\d+)$/i.exec(model);
-    if (!stableMatch) return latest;
-    const minor = Number(stableMatch[1]);
-    return minor > latest ? minor : latest;
-  }, -1);
-  const hasGpt5StableVersion = gpt5LatestStableMinor >= 0;
-
-  const gpt5MinorBySuffix = new Map<string, number>();
-  const claudeMinorByKey = new Map<string, number>();
-  const claudeHasVersionedFamily = new Set<string>();
-
-  for (const model of unique) {
-    const gptMatch = /^gpt-5\.(\d+)(.*)$/i.exec(model);
-    if (gptMatch) {
-      const minor = Number(gptMatch[1]);
-      const suffix = gptMatch[2] ?? "";
-      const current = gpt5MinorBySuffix.get(suffix) ?? -1;
-      if (minor > current) {
-        gpt5MinorBySuffix.set(suffix, minor);
-      }
-    }
-
-    const claudeMatch = /^claude-(sonnet|opus|haiku)-4\.(\d+)(.*)$/i.exec(
-      model,
-    );
-    if (claudeMatch) {
-      const family = claudeMatch[1].toLowerCase();
-      const minor = Number(claudeMatch[2]);
-      const suffix = claudeMatch[3] ?? "";
-      const key = `${family}:${suffix}`;
-      const current = claudeMinorByKey.get(key) ?? -1;
-      if (minor > current) {
-        claudeMinorByKey.set(key, minor);
-      }
-      claudeHasVersionedFamily.add(family);
-    }
-  }
-
-  const filtered = unique.filter((model) => {
-    if (hasGpt5StableVersion && /^gpt-5$/i.test(model)) {
-      return false;
-    }
-
-    const gptMatch = /^gpt-5\.(\d+)(.*)$/i.exec(model);
-    if (gptMatch) {
-      const minor = Number(gptMatch[1]);
-      if (gpt5LatestStableMinor >= 0 && minor < gpt5LatestStableMinor) {
-        return false;
-      }
-      const suffix = gptMatch[2] ?? "";
-      const latestMinor = gpt5MinorBySuffix.get(suffix) ?? minor;
-      return minor >= latestMinor;
-    }
-
-    const claudeMatch = /^claude-(sonnet|opus|haiku)-4\.(\d+)(.*)$/i.exec(
-      model,
-    );
-    if (claudeMatch) {
-      const family = claudeMatch[1].toLowerCase();
-      const minor = Number(claudeMatch[2]);
-      const suffix = claudeMatch[3] ?? "";
-      const key = `${family}:${suffix}`;
-      const latestMinor = claudeMinorByKey.get(key) ?? minor;
-      return minor >= latestMinor;
-    }
-
-    const claudeAliasMatch = /^claude-(sonnet|opus|haiku)-4$/i.exec(model);
-    if (claudeAliasMatch) {
-      const family = claudeAliasMatch[1].toLowerCase();
-      return !claudeHasVersionedFamily.has(family);
-    }
-
-    return true;
-  });
-
-  return filtered;
 }
 
 // ── State ───────────────────────────────────────────────────
