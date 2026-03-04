@@ -1,6 +1,6 @@
 {
   "name": "copilot-chat-gui",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Modern Chat GUI powered by GitHub Copilot SDK — Claude/ChatGPT-like interface for GitHub Copilot",
   "type": "module",
