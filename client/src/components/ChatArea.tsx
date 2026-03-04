@@ -252,8 +252,9 @@ export function ChatArea({
             data-action="new-chat"
             type="button"
             onClick={onNewChat}
+            disabled={isGenerating}
             className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white
-              px-2.5 py-1.5 rounded-lg hover:bg-surface-dark-3 transition-colors"
+              px-2.5 py-1.5 rounded-lg hover:bg-surface-dark-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-gray-400 disabled:hover:bg-transparent"
             title={t(language, "newChat")}
             aria-label={t(language, "newChat")}
           >
@@ -357,7 +358,7 @@ export function ChatArea({
         ref={messagesContainerRef}
         role="log"
         aria-live="polite"
-        aria-relevant="additions text"
+        aria-relevant="additions"
         className="flex-1 overflow-y-auto px-4 py-6 space-y-4"
       >
         {conversation.messages.length === 0 && !isGenerating && (
@@ -395,6 +396,7 @@ export function ChatArea({
 
       {/* Input */}
       <ChatInput
+        key={conversation.id}
         onSend={(prompt) => {
           onSend(prompt, {
             mode,

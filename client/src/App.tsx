@@ -101,6 +101,7 @@ function AdvancedApp() {
       <Sidebar
         conversations={chat.conversations}
         activeId={chat.activeId}
+        isGenerating={chat.isGenerating}
         onSelect={chat.switchChat}
         onCreate={() => chat.createChat({ model: chat.preferredModel })}
         onDelete={chat.deleteChat}

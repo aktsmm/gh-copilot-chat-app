@@ -54,6 +54,7 @@ function formatRateMultiplier(multiplier: number): string {
 interface SidebarProps {
   conversations: Conversation[];
   activeId: string | null;
+  isGenerating: boolean;
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
@@ -88,6 +89,7 @@ interface SidebarProps {
 export function Sidebar({
   conversations,
   activeId,
+  isGenerating,
   onSelect,
   onCreate,
   onDelete,
@@ -437,9 +439,11 @@ export function Sidebar({
           data-action="new-chat"
           type="button"
           onClick={onCreate}
+          disabled={isGenerating}
           aria-label={t(language, "newChat")}
           className={`flex items-center gap-2 w-full rounded-xl border border-dashed border-surface-dark-4
             hover:border-brand-500/50 hover:bg-surface-dark-2 transition-all text-gray-300 hover:text-white
+            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-gray-300 disabled:hover:bg-transparent disabled:hover:border-surface-dark-4
             ${collapsed ? "justify-center p-2.5" : "px-3 py-2.5"}`}
           title={t(language, "newChat")}
         >

@@ -201,6 +201,9 @@ export function ChatInput({
 
   const handleSend = useCallback(() => {
     if (isGenerating) {
+      if (isListening) {
+        stopVoiceInput();
+      }
       onAbort();
       return;
     }

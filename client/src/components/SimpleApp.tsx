@@ -373,6 +373,7 @@ export default function SimpleApp() {
       <SimpleHeader
         models={availableModels}
         activeModel={active?.model ?? preferredModel}
+        isGenerating={isGenerating}
         modelOptionLabels={modelOptionLabels}
         activeModelRateMultiplierLabel={activeModelRateMultiplierLabel}
         onModelChange={(model) => {
@@ -421,7 +422,7 @@ export default function SimpleApp() {
             onScroll={handleMessagesScroll}
             role="log"
             aria-live="polite"
-            aria-relevant="additions text"
+            aria-relevant="additions"
             className="flex-1 overflow-y-auto"
           >
             <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
@@ -457,6 +458,7 @@ export default function SimpleApp() {
 
           {/* Input */}
           <ChatInput
+            key={active.id}
             onSend={handleSend}
             onAbort={chat.abortGeneration}
             isGenerating={isGenerating}
