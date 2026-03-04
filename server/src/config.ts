@@ -282,24 +282,72 @@ export function selectWindowsCopilotCliCandidate(
 }
 
 function resolveWindowsCopilotCliPath(): string {
-  try {
-    const output = execFileSync("where", ["copilot"], {
-      encoding: "utf8",
-      timeout: 300,
-      stdio: ["ignore", "pipe", "ignore"],
+  const whereCommands: Array<{ command: string; args: string[] }> = [
+    { command: "where", args: ["copilot"] },
+  ];
+
+  const systemRoot = process.env.SystemRoot?.trim();
+  if (systemRoot) {
+    whereCommands.push({
+      command: path.join(systemRoot, "System32", "where.exe"),
+      args: ["copilot"],
     });
+  }
 
-    const candidates = output
-      .split(/\r?\n/g)
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
+  for (const whereCommand of whereCommands) {
+    try {
+      const output = execFileSync(whereCommand.command, whereCommand.args, {
+        encoding: "utf8",
+        timeout: 300,
+        stdio: ["ignore", "pipe", "ignore"],
+      });
 
-    const selected = selectWindowsCopilotCliCandidate(candidates);
-    if (selected) {
-      return selected;
+      const candidates = output
+        .split(/\r?\n/g)
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+
+      const selected = selectWindowsCopilotCliCandidate(candidates);
+      if (selected) {
+        return selected;
+      }
+    } catch {
+      // try next strategy
     }
-  } catch {
-    // fallback below
+  }
+
+  const localAppData = process.env.LOCALAPPDATA?.trim();
+  if (localAppData) {
+    const wingetPackagesDir = path.join(
+      localAppData,
+      "Microsoft",
+      "WinGet",
+      "Packages",
+    );
+
+    try {
+      const entries = fs.readdirSync(wingetPackagesDir, {
+        withFileTypes: true,
+      });
+      const copilotPackage = entries.find(
+        (entry) =>
+          entry.isDirectory() &&
+          entry.name.toLowerCase().startsWith("github.copilot_"),
+      );
+
+      if (copilotPackage) {
+        const wingetCliPath = path.join(
+          wingetPackagesDir,
+          copilotPackage.name,
+          "copilot.exe",
+        );
+        if (fs.existsSync(wingetCliPath)) {
+          return wingetCliPath;
+        }
+      }
+    } catch {
+      // fallback below
+    }
   }
 
   return "copilot.exe";
@@ -390,13 +438,13 @@ function resolveCopilotCliPath(): string {
         return adjacentExe;
       }
 
-      return "copilot";
+      return resolveWindowsCopilotCliPath();
     }
     return envCliPath;
   }
 
   if (process.platform === "win32") {
-    return "copilot";
+    return resolveWindowsCopilotCliPath();
   }
 
   const cliFile = "copilot";
