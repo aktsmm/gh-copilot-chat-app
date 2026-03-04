@@ -46,6 +46,6 @@ tmp-*.ps1
 /output_sessions/
 
 # Local AI workflow metadata (not required for app runtime)
-AGENTS.md
+# AGENTS.md  ← Challenge 提出で必要なため除外解除
 .github/skills/
 .github/review-learnings.md
