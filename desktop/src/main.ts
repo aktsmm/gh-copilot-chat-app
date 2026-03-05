@@ -27,6 +27,8 @@ let tray: Tray | null = null;
 let serverPort = 3001;
 let serverReady = false;
 let isQuitting = false;
+let postLaunchInitialized = false;
+let postLaunchTimer: NodeJS.Timeout | null = null;
 
 const EXTERNAL_PROTOCOL_ALLOWLIST = new Set(["http:", "https:"]);
 
@@ -104,8 +106,15 @@ if (!gotTheLock) {
 
 // ── Create the main window ──────────────────────────────────
 function getBootHtml(): string {
+  const locale = app.getLocale().toLowerCase();
+  const isJapanese = locale.startsWith("ja");
+  const htmlLang = isJapanese ? "ja" : "en";
+  const bootText = isJapanese
+    ? "GitHub Copilot Chat を起動しています…"
+    : "Starting GitHub Copilot Chat…";
+
   return `<!doctype html>
-<html lang="en">
+<html lang="${htmlLang}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -141,7 +150,7 @@ function getBootHtml(): string {
   <body>
     <div class="box" role="status" aria-live="polite">
       <div class="dot"></div>
-      <div>Starting GitHub Copilot Chat…</div>
+      <div>${bootText}</div>
     </div>
   </body>
 </html>`;
@@ -156,6 +165,7 @@ function loadBootScreen() {
 function loadMainApp() {
   if (!mainWindow || mainWindow.isDestroyed() || !serverReady) return;
   void mainWindow.loadURL(`http://127.0.0.1:${serverPort}`);
+  schedulePostLaunchInitialization();
 }
 
 function createWindow() {
@@ -306,6 +316,7 @@ function createMenu() {
 
 // ── System tray ─────────────────────────────────────────────
 function createTray() {
+  if (tray) return;
   const icon = loadTrayIcon();
   tray = new Tray(icon);
 
@@ -336,11 +347,37 @@ function createTray() {
   });
 }
 
+function registerGlobalShortcuts() {
+  if (globalShortcut.isRegistered("CmdOrCtrl+Shift+C")) return;
+  globalShortcut.register("CmdOrCtrl+Shift+C", () => {
+    if (mainWindow?.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow?.show();
+      mainWindow?.focus();
+    }
+  });
+}
+
+function initializePostLaunchFeatures() {
+  if (postLaunchInitialized) return;
+  createMenu();
+  createTray();
+  registerGlobalShortcuts();
+  postLaunchInitialized = true;
+}
+
+function schedulePostLaunchInitialization(delayMs = 1200) {
+  if (postLaunchInitialized || postLaunchTimer) return;
+  postLaunchTimer = setTimeout(() => {
+    postLaunchTimer = null;
+    initializePostLaunchFeatures();
+  }, delayMs);
+}
+
 // ── App lifecycle ──────────────────────────────────────────
 app.on("ready", async () => {
   createWindow();
-  createMenu();
-  createTray();
 
   try {
     serverPort = await startEmbeddedServer();
@@ -357,16 +394,6 @@ app.on("ready", async () => {
     app.quit();
     return;
   }
-
-  // Global shortcut to toggle window
-  globalShortcut.register("CmdOrCtrl+Shift+C", () => {
-    if (mainWindow?.isVisible()) {
-      mainWindow.hide();
-    } else {
-      mainWindow?.show();
-      mainWindow?.focus();
-    }
-  });
 });
 
 app.on("window-all-closed", () => {
@@ -383,10 +410,22 @@ app.on("activate", () => {
   } else {
     revealMainWindow();
   }
+
+  if (serverReady) {
+    schedulePostLaunchInitialization(0);
+  }
 });
 
 app.on("before-quit", async () => {
   isQuitting = true;
+  if (postLaunchTimer) {
+    clearTimeout(postLaunchTimer);
+    postLaunchTimer = null;
+  }
   globalShortcut.unregisterAll();
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
   await stopEmbeddedServer();
 });

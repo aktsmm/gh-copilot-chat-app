@@ -11,6 +11,15 @@
     @apply font-sans;
   }
 
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid theme("colors.brand.500");
+    outline-offset: 2px;
+  }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
@@ -106,11 +115,13 @@
     @apply bg-surface-3;
   }
   .theme-light .bg-surface-dark-1\/50,
+  .theme-light .bg-surface-dark-1\/80,
   .theme-light .bg-surface-dark-1\/20,
   .theme-light .bg-surface-dark-2\/40 {
     @apply bg-surface-1;
   }
 
+  .theme-light .border-surface-dark-2,
   .theme-light .border-surface-dark-3,
   .theme-light .border-surface-dark-4 {
     @apply border-surface-3;
@@ -165,6 +176,31 @@
   .theme-light .msg-assistant .prose code:not(pre code) {
     @apply bg-surface-2 text-brand-700;
   }
+  .theme-light .msg-assistant .prose a {
+    @apply text-brand-700 decoration-brand-700/40 hover:decoration-brand-700;
+  }
+
+  .theme-light .text-brand-300 {
+    color: theme("colors.brand.700");
+  }
+  .theme-light .text-brand-400 {
+    color: theme("colors.brand.600");
+  }
+  .theme-light .text-brand-200 {
+    color: theme("colors.brand.700");
+  }
+  .theme-light .border-brand-600\/30 {
+    border-color: rgb(79 70 229 / 0.35);
+  }
+  .theme-light .bg-brand-900\/20,
+  .theme-light .bg-brand-900\/30 {
+    background-color: rgb(79 70 229 / 0.1);
+  }
+  .theme-light .hover\:text-brand-200:hover,
+  .theme-light .hover\:text-brand-300:hover,
+  .theme-light .hover\:text-brand-400:hover {
+    color: theme("colors.brand.700");
+  }
 
   .theme-light .chat-input {
     @apply bg-surface-0 border-surface-3 text-gray-900 placeholder-gray-500;
@@ -175,5 +211,29 @@
   }
   .theme-light ::-webkit-scrollbar-thumb:hover {
     @apply bg-gray-400;
+  }
+
+  .text-\[10px\] {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+
+  .animate-slide-up {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .animate-blink {
+    animation: cursorBlink 1s steps(1, end) infinite;
+  }
+
+  @keyframes cursorBlink {
+    0%,
+    45% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
   }
 }

@@ -82,8 +82,12 @@ type I18nKey =
   | "copyCode"
   | "copy"
   | "copied"
+  | "copyFailed"
+  | "loading"
   | "welcomeSubtitle"
   | "pickModel"
+  | "modelsUnavailable"
+  | "retryModelLoad"
   | "quickPrompts"
   | "writeCode"
   | "explainConcept"
@@ -98,6 +102,7 @@ type I18nKey =
   | "headerActionHint"
   | "toolRunning"
   | "toolsRunning"
+  | "toolStatusRunning"
   | "conversations"
   | "workspace"
   | "defaultWorkspace"
@@ -120,6 +125,13 @@ type I18nKey =
   | "artifactLinks"
   | "artifactPaths"
   | "fallbackResponseBadge"
+  | "quickStartTitle"
+  | "modelDescLatest"
+  | "modelDescReasoning"
+  | "modelDescAnalysis"
+  | "modelDescGeneral"
+  | "skillDeepResearchBadge"
+  | "confirmDeleteConversation"
   | "assistantTyping"
   | "copilotPersona"
   | "copilotPersonaPlaceholder"
@@ -142,9 +154,9 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     noConversations: "会話はまだありません",
     modelSelector: "モデル",
     agentMode: "エージェントモード",
-    modeInteractive: "Interactive",
-    modePlan: "Plan",
-    modeAutopilot: "Autopilot",
+    modeInteractive: "対話",
+    modePlan: "計画",
+    modeAutopilot: "自動",
     reasoningEffort: "推論強度",
     reasoningAuto: "自動",
     reasoningLow: "低",
@@ -212,9 +224,13 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     copyCode: "コードをコピー",
     copy: "コピー",
     copied: "コピー済み",
+    copyFailed: "コピーに失敗しました",
+    loading: "読み込み中…",
     welcomeSubtitle:
       "GitHub Copilot SDK を使った実用的な AI チャット。コード作成、調査、レビュー、改善をすばやく進められます。",
     pickModel: "利用モデルを選択",
+    modelsUnavailable: "利用可能なモデルを取得できませんでした。",
+    retryModelLoad: "モデルを再取得",
     quickPrompts: "クイックプロンプト",
     writeCode: "コードを書く",
     explainConcept: "概念を説明",
@@ -230,6 +246,7 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
       "操作: モード切替 / コンテキスト圧縮 / 新規チャット / Simple切替",
     toolRunning: "🔧 ツール実行中…",
     toolsRunning: "🔧 ツール実行中 ({count}件)…",
+    toolStatusRunning: "実行中…",
     conversations: "会話履歴",
     workspace: "ワークスペース",
     defaultWorkspace: "既定ワークスペース",
@@ -252,6 +269,13 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     artifactLinks: "参照リンク",
     artifactPaths: "成果物パス",
     fallbackResponseBadge: "Web検索",
+    quickStartTitle: "クイック開始",
+    modelDescLatest: "最新世代",
+    modelDescReasoning: "推論特化",
+    modelDescAnalysis: "長文・分析",
+    modelDescGeneral: "汎用",
+    skillDeepResearchBadge: "CLI/Fleet",
+    confirmDeleteConversation: "この会話を削除しますか？",
     assistantTyping: "アシスタントが入力中です",
     copilotPersona: "Copilot ペルソナ",
     copilotPersonaPlaceholder:
@@ -345,9 +369,13 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     copyCode: "Copy code",
     copy: "Copy",
     copied: "Copied",
+    copyFailed: "Copy failed",
+    loading: "Loading…",
     welcomeSubtitle:
       "A practical AI chat built with GitHub Copilot SDK for coding, research, reviews, and daily development work.",
     pickModel: "Pick a model",
+    modelsUnavailable: "No available models could be loaded.",
+    retryModelLoad: "Retry model load",
     quickPrompts: "Quick prompts",
     writeCode: "Write code",
     explainConcept: "Explain concept",
@@ -363,6 +391,7 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
       "Actions: mode switch / compact context / new chat / switch to Simple",
     toolRunning: "🔧 Running tool…",
     toolsRunning: "🔧 Running tools ({count})…",
+    toolStatusRunning: "running…",
     conversations: "Conversations",
     workspace: "Workspace",
     defaultWorkspace: "Default workspace",
@@ -385,6 +414,13 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     artifactLinks: "References",
     artifactPaths: "Artifact paths",
     fallbackResponseBadge: "Web search",
+    quickStartTitle: "Quick Start",
+    modelDescLatest: "Latest generation",
+    modelDescReasoning: "Reasoning focused",
+    modelDescAnalysis: "Long context & analysis",
+    modelDescGeneral: "General purpose",
+    skillDeepResearchBadge: "CLI/Fleet",
+    confirmDeleteConversation: "Delete this conversation?",
     assistantTyping: "Assistant is typing",
     copilotPersona: "Copilot persona",
     copilotPersonaPlaceholder:

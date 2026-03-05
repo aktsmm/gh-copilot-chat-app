@@ -339,7 +339,7 @@ function resolveRuntimeLocaleContext(language: UiLanguage): {
   };
 }
 
-function normalizeSessionList(payload: unknown) {
+function normalizeSessionList(payload: unknown, language: UiLanguage) {
   if (!Array.isArray(payload)) return [];
 
   return payload
@@ -357,7 +357,7 @@ function normalizeSessionList(payload: unknown) {
 
       return {
         id,
-        title: toNonEmptyString(item.title) ?? "New Chat",
+        title: toNonEmptyString(item.title) ?? t(language, "newChat"),
         model: toNonEmptyString(item.model) ?? DEFAULT_MODEL_ID,
         createdAt,
         lastUsed,
@@ -404,9 +404,10 @@ function detectResponseLanguage(
   prompt: string,
   uiLanguage: UiLanguage,
 ): ResponseLanguage {
+  const uiFallback: ResponseLanguage = uiLanguage === "ja" ? "ja" : "en";
   const trimmed = prompt.trim();
   if (!trimmed) {
-    return uiLanguage === "ja" ? "ja" : "en";
+    return uiFallback;
   }
 
   const japaneseCount = (trimmed.match(/[ぁ-んァ-ン一-龥々〆ヵヶ]/g) ?? [])
@@ -414,8 +415,9 @@ function detectResponseLanguage(
   const englishCount = (trimmed.match(/[A-Za-z]/g) ?? []).length;
 
   if (japaneseCount === 0 && englishCount === 0) {
-    return uiLanguage === "ja" ? "ja" : "en";
+    return uiFallback;
   }
+
   if (japaneseCount === 0) {
     return "en";
   }
@@ -544,6 +546,12 @@ function formatSystemErrorMessage(
     return language === "ja"
       ? "Copilot の認証が必要です。ターミナルで `copilot auth login` を実行してください。"
       : "Copilot authentication is required. Run `copilot auth login` in your terminal.";
+  }
+
+  if (normalized.includes("failed to load models")) {
+    return language === "ja"
+      ? "利用可能なモデルを取得できませんでした。モデルを再取得してください。"
+      : "Failed to load available models. Please retry loading models.";
   }
 
   return detail;
@@ -842,7 +850,7 @@ export function useChat() {
 
     const requestSessions = () => {
       s.emit("sessions:list", {}, (sessions: unknown) => {
-        const normalized = normalizeSessionList(sessions);
+        const normalized = normalizeSessionList(sessions, languageRef.current);
         const keepConversationIds = systemNoticeIdRef.current
           ? [systemNoticeIdRef.current]
           : undefined;
@@ -1140,6 +1148,24 @@ export function useChat() {
       const s = socketRef.current;
       if (!ensureSocketConnected()) return;
       const model = opts.model ?? store.preferredModel;
+
+      if (!model.trim()) {
+        pushSystemErrorNotice(
+          languageRef.current === "ja"
+            ? "利用可能なモデルがありません。モデルを再取得してください。"
+            : "No available models. Please retry loading models.",
+        );
+        return;
+      }
+
+      if (store.availableModels.length === 0) {
+        pushSystemErrorNotice(
+          languageRef.current === "ja"
+            ? "モデル一覧を取得できなかったため、選択中のモデルで開始します。"
+            : "Model list could not be loaded. Starting with the selected model.",
+        );
+      }
+
       const mode = opts.mode ?? store.preferredAgentMode;
       const personaMessage = store.copilotPersona.trim();
       const systemMessage =
@@ -1250,6 +1276,7 @@ export function useChat() {
     [
       ensureSocketConnected,
       pushSystemErrorNotice,
+      store.availableModels.length,
       store.preferredAgentMode,
       store.copilotPersona,
       store.preferredModel,
@@ -1589,6 +1616,25 @@ export function useChat() {
     ],
   );
 
+  const refreshModels = useCallback(() => {
+    if (!ensureSocketConnected()) return;
+
+    socketRef.current.emit("models:list", {}, (models: unknown) => {
+      const normalized = normalizeModelCatalog(models);
+      setModelCatalog(normalized);
+    });
+
+    const preferredModelCandidate = preferredModelRef.current?.trim();
+    const activeModelCandidate = activeConversationModelRef.current?.trim();
+    const model =
+      activeModelCandidate && activeModelCandidate.length > 0
+        ? activeModelCandidate
+        : preferredModelCandidate;
+    socketRef.current.emit("tools:list", { model }, (tools: unknown) => {
+      setAvailableToolsCatalog(normalizeTools(tools));
+    });
+  }, [ensureSocketConnected]);
+
   return {
     ...store,
     createChat,
@@ -1603,6 +1649,7 @@ export function useChat() {
     compactActiveSession,
     runSkill,
     quickConnectMcpByUrl,
+    refreshModels,
     setPreferredModel,
     setPreferredAgentMode,
     setPreferredReasoningEffort,

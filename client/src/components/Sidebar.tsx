@@ -63,6 +63,7 @@ interface SidebarProps {
   modelCatalog: ModelInfoLite[];
   preferredModel: string;
   onPreferredModelChange: (model: string) => void;
+  onRetryModels: () => void;
   preferredAgentMode: AgentMode;
   onPreferredAgentModeChange: (mode: AgentMode) => void;
   preferredReasoningEffort: PreferredReasoningEffort;
@@ -98,6 +99,7 @@ export function Sidebar({
   modelCatalog,
   preferredModel,
   onPreferredModelChange,
+  onRetryModels,
   preferredAgentMode,
   onPreferredAgentModeChange,
   preferredReasoningEffort,
@@ -283,6 +285,7 @@ export function Sidebar({
     return map;
   }, [modelCatalog]);
   const selectedModelRateLabel = modelRateMultiplierById.get(preferredModel);
+  const hasModels = availableModels.length > 0;
   const hasRepositoryUrl = APP_REPOSITORY_URL.trim().length > 0;
   const personaPresetText = useMemo(
     () => ({
@@ -432,7 +435,6 @@ export function Sidebar({
           )}
         </button>
       </div>
-
       {/* New Chat button */}
       <div className="p-2">
         <button
@@ -455,7 +457,6 @@ export function Sidebar({
           )}
         </button>
       </div>
-
       {!collapsed && (
         <div className="px-2 pb-2 space-y-2">
           <div className="border border-surface-dark-3 rounded-xl bg-surface-dark-2/40 p-2 space-y-1.5">
@@ -574,8 +575,9 @@ export function Sidebar({
             </label>
             <select
               id="sidebar-model-selector"
-              value={preferredModel}
+              value={hasModels ? preferredModel : ""}
               onChange={(e) => onPreferredModelChange(e.target.value)}
+              disabled={!hasModels}
               title={t(language, "modelSelector")}
               aria-label={t(language, "modelSelector")}
               className="w-full bg-surface-dark-2 border border-surface-dark-3 rounded-lg px-2.5 py-2 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
@@ -589,7 +591,24 @@ export function Sidebar({
                   })()}
                 </option>
               ))}
+              {!hasModels && (
+                <option value="">{t(language, "modelsUnavailable")}</option>
+              )}
             </select>
+            {!hasModels && (
+              <div className="flex items-center justify-between gap-2 mt-1 px-1">
+                <span className="text-[10px] text-gray-500">
+                  {t(language, "modelsUnavailable")}
+                </span>
+                <button
+                  type="button"
+                  onClick={onRetryModels}
+                  className="text-[10px] px-2 py-1 rounded-md bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:bg-surface-dark-3"
+                >
+                  {t(language, "retryModelLoad")}
+                </button>
+              </div>
+            )}
             <div className="text-[10px] text-gray-500 mt-1 px-1">
               {t(language, "quotaUsageRate")}:{" "}
               {quotaUsageRatePercent == null
@@ -753,6 +772,7 @@ export function Sidebar({
                     type="button"
                     onClick={copyWorkspace}
                     disabled={!defaultWorkspace}
+                    aria-label={t(language, "copy")}
                     className="p-1 rounded text-gray-400 hover:text-gray-200 hover:bg-surface-dark-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     title={t(language, "copy")}
                   >
@@ -986,7 +1006,6 @@ export function Sidebar({
           </div>
         </div>
       )}
-
       {/* Conversation list */}
       <nav className="flex-1 px-2 pb-4 space-y-0.5">
         {filteredConversations.map((conv) => {
@@ -1091,7 +1110,6 @@ export function Sidebar({
           </div>
         )}
       </nav>
-
       {/* Footer */}
       {!collapsed && (
         <div className="border-t border-surface-dark-3 p-3 space-y-2">

@@ -183,7 +183,14 @@ export function ChatInput({
 
   // Focus on mount
   useEffect(() => {
-    textareaRef.current?.focus();
+    const shouldAutoFocus =
+      typeof document !== "undefined" &&
+      (document.activeElement === document.body ||
+        document.activeElement == null);
+    if (shouldAutoFocus) {
+      textareaRef.current?.focus();
+    }
+
     const SpeechRecognitionCtor =
       window.SpeechRecognition ?? window.webkitSpeechRecognition;
     setVoiceSupported(Boolean(SpeechRecognitionCtor));

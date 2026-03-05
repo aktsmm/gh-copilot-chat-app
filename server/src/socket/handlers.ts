@@ -304,7 +304,7 @@ function buildPromptWithResponseLanguage(
   }
 
   return [
-    "Please respond in English to the following user message.",
+    "Please answer the following user message in English.",
     "",
     prompt,
   ].join("\n");
@@ -1358,7 +1358,6 @@ export function registerSocketHandlers(
     // ── List available models ───────────────────────────────
     socket.on("models:list", async (payload: unknown, ack?: SocketAck) => {
       const callback = resolveAck(payload, ack);
-      const fallbackModels = config.copilot.availableModels;
       try {
         const client = await getClientImpl();
         const models = await client.listModels();
@@ -1367,9 +1366,9 @@ export function registerSocketHandlers(
           return;
         }
 
-        callback?.(fallbackModels);
+        callback?.([]);
       } catch (err: unknown) {
-        callback?.(fallbackModels);
+        callback?.([]);
         emitSystemError(err, "Failed to load models");
       }
     });

@@ -52,7 +52,7 @@ export function StreamingBubble({ content, language }: Props) {
           <MarkdownContent content={sanitizedContent} language={language} />
         </Suspense>
         {/* Blinking cursor */}
-        <span className="inline-block w-1.5 h-4 bg-brand-400 ml-0.5 animate-pulse rounded-sm align-text-bottom" />
+        <span className="inline-block w-1.5 h-4 bg-brand-400 ml-0.5 animate-blink rounded-sm align-text-bottom" />
       </div>
     </div>
   );

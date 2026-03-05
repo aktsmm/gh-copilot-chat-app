@@ -77,6 +77,8 @@ export function ChatArea({
   >("all");
   const [toolCategory, setToolCategory] = useState<string>("all");
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [localUrlCopied, setLocalUrlCopied] = useState(false);
+  const localUrlCopyTimerRef = useRef<number | null>(null);
 
   const toolCategories = useMemo(() => {
     const categories = new Set<string>();
@@ -201,8 +203,27 @@ export function ChatArea({
         ? navigator.clipboard.writeText.bind(navigator.clipboard)
         : undefined;
     if (!writeText) return;
-    void writeText(localServerUrl).catch(() => undefined);
+    void writeText(localServerUrl)
+      .then(() => {
+        setLocalUrlCopied(true);
+        if (localUrlCopyTimerRef.current != null) {
+          window.clearTimeout(localUrlCopyTimerRef.current);
+        }
+        localUrlCopyTimerRef.current = window.setTimeout(() => {
+          setLocalUrlCopied(false);
+          localUrlCopyTimerRef.current = null;
+        }, 1200);
+      })
+      .catch(() => undefined);
   }, [localServerUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (localUrlCopyTimerRef.current != null) {
+        window.clearTimeout(localUrlCopyTimerRef.current);
+      }
+    };
+  }, []);
 
   // Auto-scroll to bottom on new messages / streaming
   useEffect(() => {
@@ -220,7 +241,7 @@ export function ChatArea({
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
-      <header className="flex items-center justify-between px-4 py-2.5 border-b border-surface-dark-3 bg-surface-dark-1/50 backdrop-blur-sm">
+      <header className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-surface-dark-3 bg-surface-dark-1/50 backdrop-blur-sm">
         <div className="flex items-center gap-3 min-w-0">
           <h2 className="text-sm font-semibold text-gray-200 truncate">
             {conversation.title}
@@ -235,7 +256,7 @@ export function ChatArea({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-end gap-1.5 flex-wrap">
           {localServerUrl && (
             <button
               type="button"
@@ -244,7 +265,9 @@ export function ChatArea({
               title={`${t(language, "copy")}: ${localServerUrl}`}
               aria-label={`${t(language, "localServerUrl")}: ${localServerUrl}`}
             >
-              {t(language, "localServerUrl")}: {localServerUrl}
+              {localUrlCopied
+                ? t(language, "copied")
+                : `${t(language, "localServerUrl")}: ${localServerUrl}`}
             </button>
           )}
           <select
@@ -268,7 +291,9 @@ export function ChatArea({
             aria-label={t(language, "compactContext")}
           >
             <Minimize2 className="w-3.5 h-3.5" />
-            {t(language, "compactContext")}
+            <span className="hidden md:inline">
+              {t(language, "compactContext")}
+            </span>
           </button>
           <button
             data-action="new-chat"
@@ -281,7 +306,7 @@ export function ChatArea({
             aria-label={t(language, "newChat")}
           >
             <Plus className="w-3.5 h-3.5" />
-            {t(language, "newShort")}
+            <span className="hidden sm:inline">{t(language, "newShort")}</span>
           </button>
           <button
             type="button"
@@ -291,7 +316,9 @@ export function ChatArea({
             aria-label={t(language, "switchToSimple")}
           >
             <Minimize2 className="w-3.5 h-3.5" />
-            {t(language, "simpleMode")}
+            <span className="hidden md:inline">
+              {t(language, "simpleMode")}
+            </span>
           </button>
         </div>
       </header>
@@ -301,7 +328,7 @@ export function ChatArea({
           {t(language, "headerActionHint")}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] text-gray-500">
+          <span className="text-[10px] text-gray-500 w-full sm:w-auto">
             {t(language, "toolPolicy")}
           </span>
           <select
@@ -309,7 +336,7 @@ export function ChatArea({
             onChange={(e) =>
               setToolPolicyMode(e.target.value as "all" | "allow" | "exclude")
             }
-            className="text-[11px] bg-surface-dark-2 border border-surface-dark-3 rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="w-full sm:w-auto text-[11px] bg-surface-dark-2 border border-surface-dark-3 rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
             aria-label={t(language, "toolPolicy")}
           >
             <option value="all">{t(language, "toolPolicyAll")}</option>
@@ -320,7 +347,7 @@ export function ChatArea({
           <select
             value={toolCategory}
             onChange={(e) => setToolCategory(e.target.value)}
-            className="text-[11px] bg-surface-dark-2 border border-surface-dark-3 rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="w-full sm:w-auto text-[11px] bg-surface-dark-2 border border-surface-dark-3 rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
             aria-label={t(language, "toolCategory")}
           >
             {toolCategories.map((category) => (
@@ -346,7 +373,7 @@ export function ChatArea({
               });
             }}
             disabled={toolPolicyMode === "all" || filteredTools.length === 0}
-            className="min-w-[220px] max-w-[360px] text-[11px] bg-surface-dark-2 border border-surface-dark-3 rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto min-w-0 sm:min-w-[220px] sm:max-w-[360px] text-[11px] bg-surface-dark-2 border border-surface-dark-3 rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label={t(language, "toolsAvailable")}
           >
             {filteredTools.map((tool) => (
@@ -362,7 +389,7 @@ export function ChatArea({
           <button
             type="button"
             onClick={applyToolPolicy}
-            className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-dark-2 border border-surface-dark-3 text-gray-200 hover:bg-surface-dark-3"
+            className="w-full sm:w-auto text-[11px] px-2.5 py-1 rounded-lg bg-surface-dark-2 border border-surface-dark-3 text-gray-200 hover:bg-surface-dark-3"
           >
             {t(language, "applyToolPolicy")}
           </button>
@@ -379,7 +406,7 @@ export function ChatArea({
       <div
         ref={messagesContainerRef}
         role="log"
-        aria-live="polite"
+        aria-live={isGenerating ? "off" : "polite"}
         aria-relevant="additions"
         className="flex-1 overflow-y-auto px-4 py-6 space-y-4"
       >
@@ -397,8 +424,20 @@ export function ChatArea({
         {/* Active tool calls */}
         {activeTools.length > 0 && (
           <div className="space-y-1">
+            <div role="status" aria-live="polite" className="sr-only">
+              {activeTools.length === 1
+                ? t(language, "toolRunning")
+                : t(language, "toolsRunning").replace(
+                    "{count}",
+                    String(activeTools.length),
+                  )}
+            </div>
             {activeTools.map((t, i) => (
-              <ToolCallIndicator key={t.id ?? `${t.name}-${i}`} tool={t} />
+              <ToolCallIndicator
+                key={t.id ?? `${t.name}-${i}`}
+                tool={t}
+                language={language}
+              />
             ))}
           </div>
         )}

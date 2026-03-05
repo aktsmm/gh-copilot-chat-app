@@ -103,6 +103,16 @@ GitHub Copilot Chat Setup x.x.x.zip  ← extract first
 
 > If Windows SmartScreen shows a warning, click "More info" → "Run anyway".
 
+> If launch is slow or blocked immediately after download, unblock both the ZIP and extracted EXE in PowerShell:
+
+```powershell
+Unblock-File -Path ".\GitHub Copilot Chat Setup x.x.x.zip"
+Expand-Archive -Path ".\GitHub Copilot Chat Setup x.x.x.zip" -DestinationPath .\copilot-chat-setup
+Unblock-File -Path ".\copilot-chat-setup\GitHub Copilot Chat Setup x.x.x.exe"
+```
+
+> Release Assets also include `UNBLOCK-WINDOWS.ps1` to bulk-unblock executable files inside an extracted folder.
+
 ### Step 4 — Launch
 
 After installation, click **GitHub Copilot Chat** from the desktop shortcut or Start Menu.
@@ -166,6 +176,7 @@ Portable folder output (recommended for non-installer use):
 - On `Release published`, [release-desktop-assets.yml](.github/workflows/release-desktop-assets.yml) builds and uploads:
   - GitHub Copilot Chat Setup <version>.zip
   - GitHub Copilot Chat Portable <version>.zip (extracted-folder style)
+  - UNBLOCK-WINDOWS.ps1 (post-download unblock helper)
   - SHA256SUMS.txt
 - The workflow validates that release `tag` (without leading `v`) matches all workspace `package.json` versions.
 - For manual execution, use workflow_dispatch and provide `tag`.

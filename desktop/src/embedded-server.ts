@@ -13,19 +13,42 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 import { app as electronApp } from "electron";
 
-// We import server modules directly from the server workspace
-// In development, this points to ../server/src
-// In production (packaged), this points to the bundled server
-import { apiRouter } from "../../server/src/routes/api.js";
-import { registerSocketHandlers } from "../../server/src/socket/handlers.js";
-import { stopClient } from "../../server/src/copilot/client-manager.js";
-import {
-  config,
-  hasValidAccessToken,
-  isCorsOriginAllowed,
-} from "../../server/src/config.js";
-
 let httpServer: HTTPServer | null = null;
+
+type ServerDeps = {
+  apiRouter: express.Router;
+  registerSocketHandlers: (io: SocketIO) => void;
+  stopClient: () => Promise<void>;
+  config: {
+    security: {
+      requireAccessToken: boolean;
+    };
+  };
+  hasValidAccessToken: (token: string | undefined) => boolean;
+  isCorsOriginAllowed: (origin: string | undefined) => boolean;
+};
+
+let serverDepsPromise: Promise<ServerDeps> | null = null;
+
+function loadServerDeps(): Promise<ServerDeps> {
+  if (!serverDepsPromise) {
+    serverDepsPromise = Promise.all([
+      import("../../server/src/routes/api.js"),
+      import("../../server/src/socket/handlers.js"),
+      import("../../server/src/copilot/client-manager.js"),
+      import("../../server/src/config.js"),
+    ]).then(([routeModule, socketModule, clientModule, configModule]) => ({
+      apiRouter: routeModule.apiRouter,
+      registerSocketHandlers: socketModule.registerSocketHandlers,
+      stopClient: clientModule.stopClient,
+      config: configModule.config,
+      hasValidAccessToken: configModule.hasValidAccessToken,
+      isCorsOriginAllowed: configModule.isCorsOriginAllowed,
+    }));
+  }
+
+  return serverDepsPromise;
+}
 
 function resolveClientDistPath(): string {
   if (!electronApp.isPackaged) {
@@ -47,6 +70,7 @@ function resolveClientDistPath(): string {
 
 function resolveCorsOrigin(
   origin: string | undefined,
+  isCorsOriginAllowed: (origin: string | undefined) => boolean,
   callback: (error: Error | null, allow?: boolean) => void,
 ) {
   if (isCorsOriginAllowed(origin)) {
@@ -101,6 +125,7 @@ function resolveHeaderToken(
 
 function hasTrustedOrigin(
   headers: Record<string, string | string[] | undefined>,
+  isCorsOriginAllowed: (origin: string | undefined) => boolean,
 ): boolean {
   const origin = headers.origin;
   if (typeof origin !== "string") {
@@ -143,17 +168,26 @@ function listenOnPort(
  * @returns The port the server is listening on.
  */
 export async function startEmbeddedServer(): Promise<number> {
+  const {
+    apiRouter,
+    registerSocketHandlers,
+    config,
+    hasValidAccessToken,
+    isCorsOriginAllowed,
+  } = await loadServerDeps();
+
   const expressApp = express();
   expressApp.use(
     cors({
-      origin: resolveCorsOrigin,
+      origin: (origin, callback) =>
+        resolveCorsOrigin(origin, isCorsOriginAllowed, callback),
     }),
   );
   expressApp.use(express.json());
 
   expressApp.use("/api", (req, res, next) => {
     const token = resolveRequestToken(req);
-    const trustedOrigin = hasTrustedOrigin(req.headers);
+    const trustedOrigin = hasTrustedOrigin(req.headers, isCorsOriginAllowed);
 
     if (!trustedOrigin && !hasValidAccessToken(token)) {
       res.status(403).json({ error: "Forbidden origin" });
@@ -185,9 +219,13 @@ export async function startEmbeddedServer(): Promise<number> {
   // Create HTTP + Socket.IO server
   httpServer = createServer(expressApp);
   const io = new SocketIO(httpServer, {
-    cors: { origin: resolveCorsOrigin, methods: ["GET", "POST"] },
+    cors: {
+      origin: (origin, callback) =>
+        resolveCorsOrigin(origin, isCorsOriginAllowed, callback),
+      methods: ["GET", "POST"],
+    },
     allowRequest: (req, callback) => {
-      const trustedOrigin = hasTrustedOrigin(req.headers);
+      const trustedOrigin = hasTrustedOrigin(req.headers, isCorsOriginAllowed);
       const token = resolveHeaderToken(req.headers);
 
       if (!trustedOrigin && !hasValidAccessToken(token)) {
@@ -215,7 +253,10 @@ export async function startEmbeddedServer(): Promise<number> {
       typeof authPayload.token === "string" ? authPayload.token.trim() : "";
     const headerToken = resolveHeaderToken(socket.handshake.headers);
     const token = authToken || headerToken;
-    const trustedOrigin = hasTrustedOrigin(socket.handshake.headers);
+    const trustedOrigin = hasTrustedOrigin(
+      socket.handshake.headers,
+      isCorsOriginAllowed,
+    );
 
     if (!trustedOrigin && !hasValidAccessToken(token)) {
       next(new Error("Forbidden origin"));
@@ -254,7 +295,12 @@ export async function startEmbeddedServer(): Promise<number> {
  * Stop the embedded server and clean up Copilot SDK resources.
  */
 export async function stopEmbeddedServer(): Promise<void> {
-  await stopClient();
+  if (serverDepsPromise) {
+    try {
+      const { stopClient } = await serverDepsPromise;
+      await stopClient();
+    } catch {}
+  }
   if (httpServer) {
     await new Promise<void>((resolve) => {
       httpServer!.close(() => resolve());

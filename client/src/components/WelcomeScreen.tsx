@@ -10,28 +10,147 @@ interface Props {
   language: UiLanguage;
   displayName: string;
   models: string[];
+  onRetryModels: () => void;
   onNewChat: (model?: string) => void;
   onQuickPrompt: (prompt: string) => void;
 }
 
-function modelDescription(model: string, language: UiLanguage): string {
-  const lower = model.toLowerCase();
-  if (lower.includes("gpt-5"))
-    return language === "ja" ? "最新世代" : "Latest generation";
-  if (lower.includes("o3"))
-    return language === "ja" ? "推論特化" : "Reasoning focused";
-  if (lower.includes("claude"))
-    return language === "ja" ? "長文・分析" : "Long context & analysis";
-  return language === "ja" ? "汎用" : "General purpose";
+function resolveVendor(modelId: string): string {
+  const lower = modelId.toLowerCase();
+  if (lower.startsWith("claude")) return "anthropic";
+  if (
+    lower.startsWith("gpt") ||
+    lower.startsWith("o1") ||
+    lower.startsWith("o3") ||
+    lower.startsWith("o4")
+  ) {
+    return "openai";
+  }
+  if (lower.startsWith("gemini")) return "google";
+  if (lower.startsWith("deepseek")) return "deepseek";
+  if (lower.startsWith("qwen")) return "qwen";
+  if (lower.startsWith("mistral")) return "mistral";
+
+  const first = lower.split(/[-_/]/)[0];
+  return first || "other";
+}
+
+function parseVersionParts(modelId: string): number[] {
+  const parts = modelId.toLowerCase().split("-");
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const token = parts[index];
+    if (/^\d+(?:\.\d+)*$/.test(token)) {
+      return token.split(".").map((segment) => Number(segment));
+    }
+  }
+  return [];
+}
+
+function compareVersionParts(left: number[], right: number[]): number {
+  const maxLength = Math.max(left.length, right.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftValue = left[index] ?? 0;
+    const rightValue = right[index] ?? 0;
+    if (leftValue !== rightValue) {
+      return leftValue - rightValue;
+    }
+  }
+  return 0;
+}
+
+function resolveFamilyKey(modelId: string): string {
+  const parts = modelId.toLowerCase().split("-");
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    if (/^\d+(?:\.\d+)*$/.test(parts[index])) {
+      return parts.slice(0, index).join("-") || modelId.toLowerCase();
+    }
+  }
+  return modelId.toLowerCase();
+}
+
+function buildSuggestedModels(models: string[], maxCount = 6): string[] {
+  if (models.length <= 1) return models;
+
+  const latestByFamily = new Map<
+    string,
+    {
+      id: string;
+      vendor: string;
+      version: number[];
+      order: number;
+    }
+  >();
+
+  models.forEach((model, order) => {
+    const familyKey = resolveFamilyKey(model);
+    const nextVersion = parseVersionParts(model);
+    const current = latestByFamily.get(familyKey);
+    if (!current) {
+      latestByFamily.set(familyKey, {
+        id: model,
+        vendor: resolveVendor(model),
+        version: nextVersion,
+        order,
+      });
+      return;
+    }
+
+    const versionDiff = compareVersionParts(nextVersion, current.version);
+    if (
+      versionDiff > 0 ||
+      (versionDiff === 0 && model.length < current.id.length)
+    ) {
+      latestByFamily.set(familyKey, {
+        id: model,
+        vendor: resolveVendor(model),
+        version: nextVersion,
+        order: current.order,
+      });
+    }
+  });
+
+  const deduped = [...latestByFamily.values()].sort(
+    (left, right) => left.order - right.order,
+  );
+
+  const vendorOrder: string[] = [];
+  const byVendor = new Map<string, string[]>();
+  deduped.forEach((item) => {
+    if (!byVendor.has(item.vendor)) {
+      byVendor.set(item.vendor, []);
+      vendorOrder.push(item.vendor);
+    }
+    byVendor.get(item.vendor)?.push(item.id);
+  });
+
+  const result: string[] = [];
+  while (result.length < maxCount) {
+    let pickedInRound = false;
+    for (const vendor of vendorOrder) {
+      const queue = byVendor.get(vendor);
+      if (!queue || queue.length === 0) continue;
+      const candidate = queue.shift();
+      if (!candidate) continue;
+      result.push(candidate);
+      pickedInRound = true;
+      if (result.length >= maxCount) break;
+    }
+    if (!pickedInRound) break;
+  }
+
+  return result;
 }
 
 export function WelcomeScreen({
   language,
   displayName,
   models,
+  onRetryModels,
   onNewChat,
   onQuickPrompt,
 }: Props) {
+  const suggestedModels = buildSuggestedModels(models, 6);
+
   const quickPrompts = [
     {
       icon: Code2,
@@ -92,22 +211,34 @@ export function WelcomeScreen({
         <div className="w-full text-center text-xs text-gray-500 mb-1">
           {t(language, "pickModel")}
         </div>
-        {models.slice(0, 6).map((model) => (
-          <button
-            key={model}
-            onClick={() => onNewChat(model)}
-            className="flex flex-col items-center gap-1 px-6 py-4 rounded-2xl
-              bg-surface-dark-2 border border-surface-dark-3
-              hover:border-brand-500/50 hover:bg-surface-dark-3 transition-all group"
-          >
-            <span className="text-sm font-semibold text-gray-200 group-hover:text-white">
-              {model}
-            </span>
-            <span className="text-[10px] text-gray-500">
-              {modelDescription(model, language)}
-            </span>
-          </button>
-        ))}
+        {models.length === 0 ? (
+          <div className="w-full max-w-lg rounded-xl border border-surface-dark-3 bg-surface-dark-1 px-4 py-4 text-center space-y-2">
+            <p className="text-sm text-gray-300">
+              {t(language, "modelsUnavailable")}
+            </p>
+            <button
+              type="button"
+              onClick={onRetryModels}
+              className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs bg-surface-dark-2 border border-surface-dark-3 text-gray-200 hover:bg-surface-dark-3"
+            >
+              {t(language, "retryModelLoad")}
+            </button>
+          </div>
+        ) : (
+          suggestedModels.map((model) => (
+            <button
+              key={model}
+              onClick={() => onNewChat(model)}
+              className="flex flex-col items-center gap-1 px-6 py-4 rounded-2xl
+                bg-surface-dark-2 border border-surface-dark-3
+                hover:border-brand-500/50 hover:bg-surface-dark-3 transition-all group"
+            >
+              <span className="text-sm font-semibold text-gray-200 group-hover:text-white">
+                {model}
+              </span>
+            </button>
+          ))
+        )}
       </div>
 
       {/* Quick prompts */}

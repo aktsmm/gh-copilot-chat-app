@@ -3,13 +3,15 @@
  */
 
 import { Loader2, CheckCircle2, Wrench } from "lucide-react";
-import type { ToolCall } from "../lib/types";
+import type { ToolCall, UiLanguage } from "../lib/types";
+import { t } from "../lib/i18n";
 
 interface Props {
   tool: ToolCall;
+  language: UiLanguage;
 }
 
-export function ToolCallIndicator({ tool }: Props) {
+export function ToolCallIndicator({ tool, language }: Props) {
   const isRunning = tool.status === "running";
 
   return (
@@ -22,7 +24,11 @@ export function ToolCallIndicator({ tool }: Props) {
         )}
         <Wrench className="w-3 h-3 text-gray-500" />
         <span className="font-mono text-gray-300">{tool.name}</span>
-        {isRunning && <span className="text-gray-500">running…</span>}
+        {isRunning && (
+          <span className="text-gray-500">
+            {t(language, "toolStatusRunning")}
+          </span>
+        )}
       </div>
     </div>
   );

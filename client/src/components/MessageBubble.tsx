@@ -2,7 +2,7 @@
  * MessageBubble — Renders a single chat message.
  */
 
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage, UiLanguage } from "../lib/types";
 import { User, Bot, AlertTriangle } from "lucide-react";
 import { t } from "../lib/i18n";
@@ -39,6 +39,21 @@ function toArtifactUrl(candidate: string): string | null {
   return sanitized;
 }
 
+function isLikelyArtifactPath(candidate: string): boolean {
+  const sanitized = trimTrailingUrlPunctuation(stripAnsi(candidate).trim());
+  if (!sanitized) return false;
+
+  if (
+    sanitized.startsWith("./") ||
+    sanitized.startsWith("../") ||
+    sanitized.startsWith("/")
+  ) {
+    return true;
+  }
+
+  return /(^|\/)\S+\.\S+$/.test(sanitized);
+}
+
 function extractArtifacts(content: string): {
   urls: string[];
   paths: string[];
@@ -66,6 +81,9 @@ function extractArtifacts(content: string): {
     if (candidate.startsWith("/api") || candidate.startsWith("/socket.io")) {
       continue;
     }
+    if (!isLikelyArtifactPath(candidate)) {
+      continue;
+    }
     relativePathMatches.push(candidate);
   }
 
@@ -76,10 +94,37 @@ function extractArtifacts(content: string): {
 
 export function MessageBubble({ message, language }: Props) {
   const { role, content } = message;
+  const [messageCopyState, setMessageCopyState] = useState<
+    "idle" | "ok" | "error"
+  >("idle");
+  const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current != null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
+
+  const updateCopyState = (next: "ok" | "error") => {
+    setMessageCopyState(next);
+    if (copyTimerRef.current != null) {
+      window.clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = window.setTimeout(() => {
+      setMessageCopyState("idle");
+      copyTimerRef.current = null;
+    }, 1200);
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(content);
-    } catch {}
+      updateCopyState("ok");
+    } catch {
+      updateCopyState("error");
+    }
   };
   const copyText = async (value: string) => {
     try {
@@ -148,8 +193,13 @@ export function MessageBubble({ message, language }: Props) {
                 onClick={handleCopy}
                 className="text-[10px] px-2 py-0.5 rounded-md bg-surface-dark-3 text-gray-300 hover:text-white"
                 title={t(language, "copy")}
+                aria-label={t(language, "copy")}
               >
-                {t(language, "copy")}
+                {messageCopyState === "ok"
+                  ? t(language, "copied")
+                  : messageCopyState === "error"
+                    ? t(language, "copyFailed")
+                    : t(language, "copy")}
               </button>
             </div>
             <Suspense
@@ -181,6 +231,7 @@ export function MessageBubble({ message, language }: Props) {
                           <button
                             onClick={() => void copyText(url)}
                             className="text-[10px] px-2 py-0.5 rounded-md bg-surface-dark-3 text-gray-300 hover:text-white"
+                            aria-label={`${t(language, "copy")}: ${url}`}
                           >
                             {t(language, "copy")}
                           </button>
@@ -208,6 +259,7 @@ export function MessageBubble({ message, language }: Props) {
                           <button
                             onClick={() => void copyText(artifactPath)}
                             className="text-[10px] px-2 py-0.5 rounded-md bg-surface-dark-3 text-gray-300 hover:text-white"
+                            aria-label={`${t(language, "copy")}: ${artifactPath}`}
                           >
                             {t(language, "copy")}
                           </button>

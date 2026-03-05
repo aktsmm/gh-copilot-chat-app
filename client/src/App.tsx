@@ -2,7 +2,7 @@
  * App — Root layout. Switches between Simple and Advanced modes.
  */
 
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Minimize2 } from "lucide-react";
 import { useChat } from "./lib/useChat";
 import { useChatStore } from "./lib/store";
@@ -35,14 +35,18 @@ function isResearchSupportedModel(modelId: string): boolean {
 }
 
 export function App() {
-  const { uiMode } = useChatStore();
+  const { uiMode, uiLanguage } = useChatStore();
 
   if (uiMode === "simple") {
     return (
       <Suspense
         fallback={
-          <div className="flex h-screen items-center justify-center bg-surface-dark-0 text-gray-400">
-            Loading…
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex h-screen items-center justify-center bg-surface-dark-0 text-gray-400"
+          >
+            {t(uiLanguage, "loading")}
           </div>
         }
       >
@@ -57,6 +61,8 @@ export function App() {
 function AdvancedApp() {
   const chat = useChat();
   const localServerUrl = useMemo(() => getLocalServerUrl(), []);
+  const [localUrlCopied, setLocalUrlCopied] = useState(false);
+  const localUrlCopyTimerRef = useRef<number | null>(null);
   const skills = useMemo(() => getSkills(chat.uiLanguage), [chat.uiLanguage]);
   const selectedModelInfo = useMemo(
     () => chat.modelCatalog.find((model) => model.id === chat.preferredModel),
@@ -91,6 +97,14 @@ function AdvancedApp() {
     ? `${primaryQuota.usedRequests}/${primaryQuota.entitlementRequests}`
     : null;
 
+  useEffect(() => {
+    return () => {
+      if (localUrlCopyTimerRef.current != null) {
+        window.clearTimeout(localUrlCopyTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div
       className={`flex h-screen overflow-hidden ${
@@ -116,6 +130,7 @@ function AdvancedApp() {
           if (!chat.active) return;
           chat.setConversationModel(chat.active.id, model);
         }}
+        onRetryModels={chat.refreshModels}
         preferredAgentMode={chat.preferredAgentMode}
         onPreferredAgentModeChange={chat.setPreferredAgentMode}
         preferredReasoningEffort={chat.preferredReasoningEffort}
@@ -152,13 +167,26 @@ function AdvancedApp() {
                       ? navigator.clipboard.writeText.bind(navigator.clipboard)
                       : undefined;
                   if (!writeText) return;
-                  void writeText(localServerUrl).catch(() => undefined);
+                  void writeText(localServerUrl)
+                    .then(() => {
+                      setLocalUrlCopied(true);
+                      if (localUrlCopyTimerRef.current != null) {
+                        window.clearTimeout(localUrlCopyTimerRef.current);
+                      }
+                      localUrlCopyTimerRef.current = window.setTimeout(() => {
+                        setLocalUrlCopied(false);
+                        localUrlCopyTimerRef.current = null;
+                      }, 1200);
+                    })
+                    .catch(() => undefined);
                 }}
                 className="text-[10px] rounded px-2 py-1 bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:text-white hover:bg-surface-dark-3"
                 title={`${t(chat.uiLanguage, "copy")}: ${localServerUrl}`}
                 aria-label={`${t(chat.uiLanguage, "localServerUrl")}: ${localServerUrl}`}
               >
-                {t(chat.uiLanguage, "localServerUrl")}: {localServerUrl}
+                {localUrlCopied
+                  ? t(chat.uiLanguage, "copied")
+                  : `${t(chat.uiLanguage, "localServerUrl")}: ${localServerUrl}`}
               </button>
             )}
             <button
@@ -200,6 +228,7 @@ function AdvancedApp() {
             language={chat.uiLanguage}
             displayName={chat.userProfile.displayName}
             models={chat.availableModels}
+            onRetryModels={chat.refreshModels}
             onNewChat={(model) => {
               const selected = model ?? chat.preferredModel;
               chat.setPreferredModel(selected);
@@ -209,8 +238,7 @@ function AdvancedApp() {
               chat.createChat({
                 model: chat.preferredModel,
                 initialPrompt: prompt,
-                title:
-                  chat.uiLanguage === "ja" ? "クイック開始" : "Quick Start",
+                title: t(chat.uiLanguage, "quickStartTitle"),
               })
             }
           />

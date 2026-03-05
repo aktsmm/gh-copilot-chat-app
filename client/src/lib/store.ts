@@ -580,14 +580,7 @@ export function setAvailableModels(models: string[]) {
 export function setModelCatalog(models: ModelInfoLite[]) {
   state.modelCatalog = models;
   const dynamicModels = normalizeModels(models.map((model) => model.id));
-  if (dynamicModels.length > 0) {
-    state.availableModels = dynamicModels;
-  } else if (state.availableModels.length === 0) {
-    state.availableModels = normalizeModels([
-      state.preferredModel,
-      DEFAULT_MODELS[0],
-    ]);
-  }
+  state.availableModels = dynamicModels;
   if (!state.availableModels.includes(state.preferredModel)) {
     state.preferredModel = state.availableModels[0] ?? DEFAULT_MODELS[0];
   }

@@ -298,7 +298,7 @@ export default function SimpleApp() {
       chat.createChat({
         model: preferredModel,
         initialPrompt: prompt,
-        title: language === "ja" ? "クイック開始" : "Quick Start",
+        title: t(language, "quickStartTitle"),
       });
     },
     [chat, preferredModel, language],
@@ -379,6 +379,7 @@ export default function SimpleApp() {
           if (!active) return;
           chat.setConversationModel(active.id, model);
         }}
+        onRetryModels={chat.refreshModels}
         onNewChat={() => handleNewChat()}
         onSwitchToAdvanced={() => setUiMode("advanced")}
         onToggleHistory={toggleHistoryDrawer}
@@ -410,6 +411,7 @@ export default function SimpleApp() {
           language={language}
           displayName={chat.userProfile.displayName}
           models={availableModels}
+          onRetryModels={chat.refreshModels}
           onNewChat={handleNewChat}
           onQuickPrompt={handleQuickPrompt}
         />
@@ -420,7 +422,7 @@ export default function SimpleApp() {
             ref={messagesContainerRef}
             onScroll={handleMessagesScroll}
             role="log"
-            aria-live="polite"
+            aria-live={isGenerating ? "off" : "polite"}
             aria-relevant="additions"
             className="flex-1 overflow-y-auto"
           >

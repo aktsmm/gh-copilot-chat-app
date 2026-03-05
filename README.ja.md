@@ -127,6 +127,16 @@ GitHub Copilot Chat Setup x.x.x.zip  ← 展開
 
 > Windows SmartScreen が警告を出した場合は「詳細情報」→「実行」を選んでください。
 
+> ダウンロード直後に起動が重い/ブロックされる場合は、ZIP と展開後 EXE のブロック解除を実施してください（PowerShell）。
+
+```powershell
+Unblock-File -Path ".\GitHub Copilot Chat Setup x.x.x.zip"
+Expand-Archive -Path ".\GitHub Copilot Chat Setup x.x.x.zip" -DestinationPath .\copilot-chat-setup
+Unblock-File -Path ".\copilot-chat-setup\GitHub Copilot Chat Setup x.x.x.exe"
+```
+
+> Release Assets には `UNBLOCK-WINDOWS.ps1` も同梱しており、展開フォルダ配下の実行ファイルを一括で Unblock できます。
+
 #### ④ 起動する
 
 インストール完了後、デスクトップまたはスタートメニューの **GitHub Copilot Chat** をクリックすれば起動します。
@@ -225,6 +235,7 @@ npm start
 - `Release published` 時に [release-desktop-assets.yml](.github/workflows/release-desktop-assets.yml) が自動で `npm run build:desktop` を実行し、以下を添付します。
   - `GitHub Copilot Chat Setup <version>.zip`
   - `GitHub Copilot Chat Portable <version>.zip`（展開型）
+  - `UNBLOCK-WINDOWS.ps1`（ダウンロード直後の実行ファイル解除補助）
   - `SHA256SUMS.txt`
 - workflow はリリース `tag`（先頭 `v` を除く）と各 workspace の `package.json` version が一致することを検証します。
 - 手動実行の場合は workflow_dispatch で `tag` を指定してください。

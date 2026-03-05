@@ -20,7 +20,11 @@ export function SimpleToolIndicator({ tools, language }: Props) {
       : t(language, "toolsRunning").replace("{count}", String(tools.length));
 
   return (
-    <div className="flex items-center gap-2 py-2 px-3 text-xs text-gray-400 animate-pulse">
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-2 py-2 px-3 text-xs text-gray-400 animate-pulse"
+    >
       <span className="inline-block w-2 h-2 rounded-full bg-brand-500 animate-ping" />
       <span>{label}</span>
     </div>

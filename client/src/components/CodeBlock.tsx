@@ -5,6 +5,7 @@
 import { useState, useCallback } from "react";
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
 import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
 import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
@@ -19,6 +20,7 @@ import css from "react-syntax-highlighter/dist/esm/languages/prism/css";
 import { Copy, Check } from "lucide-react";
 import type { UiLanguage } from "../lib/types";
 import { t } from "../lib/i18n";
+import { useChatStore } from "../lib/store";
 
 SyntaxHighlighter.registerLanguage("javascript", javascript);
 SyntaxHighlighter.registerLanguage("js", javascript);
@@ -47,6 +49,7 @@ interface Props {
 
 export function CodeBlock({ language, code, uiLanguage }: Props) {
   const [copied, setCopied] = useState(false);
+  const { themeMode } = useChatStore();
 
   const handleCopy = useCallback(async () => {
     try {
@@ -86,16 +89,19 @@ export function CodeBlock({ language, code, uiLanguage }: Props) {
 
       <SyntaxHighlighter
         language={language}
-        style={oneDark}
+        style={themeMode === "light" ? oneLight : oneDark}
         customStyle={{
           margin: 0,
           borderRadius: "0 0 0.75rem 0.75rem",
-          border: "1px solid #303036",
+          border: `1px solid ${themeMode === "light" ? "#e5e7eb" : "#303036"}`,
           borderTop: "none",
           fontSize: "0.8rem",
         }}
         showLineNumbers
-        lineNumberStyle={{ color: "#3f3f46", fontSize: "0.7rem" }}
+        lineNumberStyle={{
+          color: themeMode === "light" ? "#9ca3af" : "#3f3f46",
+          fontSize: "0.7rem",
+        }}
       >
         {code}
       </SyntaxHighlighter>
