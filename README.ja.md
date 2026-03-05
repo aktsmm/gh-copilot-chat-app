@@ -224,7 +224,7 @@ npm start
 - 配布物（EXE）はリポジトリへコミットせず、GitHub Release Assets として添付します。
 - `Release published` 時に [release-desktop-assets.yml](.github/workflows/release-desktop-assets.yml) が自動で `npm run build:desktop` を実行し、以下を添付します。
   - `GitHub Copilot Chat Setup <version>.zip`
-   - `GitHub Copilot Chat Portable <version>.zip`（展開型）
+  - `GitHub Copilot Chat Portable <version>.zip`（展開型）
   - `SHA256SUMS.txt`
 - workflow はリリース `tag`（先頭 `v` を除く）と各 workspace の `package.json` version が一致することを検証します。
 - 手動実行の場合は workflow_dispatch で `tag` を指定してください。
@@ -273,31 +273,32 @@ npm start
 
 ## 環境変数
 
-| 変数                                   | 説明                                           | デフォルト                                                                                                                    |
-| -------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                                 | サーバーポート                                 | `3001`                                                                                                                        |
-| `HOST`                                 | サーバーバインド先ホスト                       | `127.0.0.1`                                                                                                                   |
-| `SERVER_ACCESS_TOKEN`                  | API / Socket 接続用アクセストークン            | （未設定）                                                                                                                    |
-| `REQUIRE_ACCESS_TOKEN`                 | 接続トークン必須化 (`true/false`)              | `HOST` が非ローカルなら `true`、ローカルなら `false`                                                                          |
-| `VITE_SERVER_ACCESS_TOKEN`             | クライアントが送信する接続トークン             | （未設定）                                                                                                                    |
-| `GITHUB_TOKEN`                         | GitHub 認証トークン                            | (gh CLI から自動取得)                                                                                                         |
-| `BYOK_PROVIDER`                        | BYOK: `openai` / `azure` / `anthropic`         | —                                                                                                                             |
-| `BYOK_API_KEY`                         | BYOK: API キー                                 | —                                                                                                                             |
-| `BYOK_BASE_URL`                        | BYOK: API ベース URL                           | —                                                                                                                             |
-| `VITE_SERVER_URL`                      | クライアント接続先（開発時のproxy先）          | `http://127.0.0.1:3001`                                                                                                       |
-| `CORS_ORIGINS`                         | CORS許可オリジン（`,` 区切り）                 | `http://localhost:5173,http://127.0.0.1:5173,http://[::1]:5173,http://localhost:3001,http://127.0.0.1:3001,http://[::1]:3001` |
-| `COPILOT_CLI_PATH`                     | Copilot CLI のパス                             | `copilot`                                                                                                                     |
-| `COPILOT_LOG_LEVEL`                    | ログレベル                                     | `info`                                                                                                                        |
-| `ENABLE_WEB_SEARCH_FALLBACK`           | Web検索フォールバック有効化 (`true/false`)     | 開発環境 `true`、本番 `false`                                                                                                 |
-| `WEB_SEARCH_FALLBACK_MODEL`            | フォールバック実行モデル                       | `gpt-5-mini`                                                                                                                  |
-| `WEB_SEARCH_FALLBACK_TIMEOUT_MS`       | フォールバックCLIタイムアウト（ms）            | `90000`                                                                                                                       |
-| `WEB_SEARCH_FALLBACK_ALLOW_ALL_URLS`   | URL制限を無効化して全URL許可 (`true/false`)    | `false`                                                                                                                       |
-| `WEB_SEARCH_FALLBACK_ALLOWED_URLS`     | 許可URL/ドメイン（`,`区切り）                  | `weather.gov,www.jma.go.jp,tenki.jp,www.bbc.com,www.reuters.com,apnews.com,www.nhk.or.jp,www.nikkei.com`                      |
-| `WEB_SEARCH_FALLBACK_DEFAULT_LOCATION` | 地域未指定時の優先地域（例: `Tokyo, Japan`）   | （未設定）                                                                                                                    |
-| `WEB_SEARCH_FALLBACK_DEFAULT_LOCALE`   | 地域推定の優先ロケール（例: `ja-JP`）          | （未設定）                                                                                                                    |
-| `WEB_SEARCH_FALLBACK_DEFAULT_TIMEZONE` | 地域推定の既定タイムゾーン（例: `Asia/Tokyo`） | （未設定）                                                                                                                    |
-| `STRICT_TOOL_PERMISSIONS`              | ツール権限の厳格モード (`true/false`)          | 非ローカル運用時 `true`、ローカル運用時 `false`                                                                               |
-| `PERMISSION_ALLOW_KINDS`               | 許可する権限種別（`,`区切り）                  | `read,url,mcp`                                                                                                                |
+| 変数                                   | 説明                                                     | デフォルト                                                                                                                    |
+| -------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                                 | サーバーポート                                           | `3001`                                                                                                                        |
+| `HOST`                                 | サーバーバインド先ホスト                                 | `127.0.0.1`                                                                                                                   |
+| `SERVER_ACCESS_TOKEN`                  | API / Socket 接続用アクセストークン                      | （未設定）                                                                                                                    |
+| `REQUIRE_ACCESS_TOKEN`                 | 接続トークン必須化 (`true/false`)                        | `HOST` が非ローカルなら `true`、ローカルなら `false`                                                                          |
+| `VITE_SERVER_ACCESS_TOKEN`             | クライアントが送信する接続トークン                       | （未設定）                                                                                                                    |
+| `GITHUB_TOKEN`                         | GitHub 認証トークン                                      | (gh CLI から自動取得)                                                                                                         |
+| `BYOK_PROVIDER`                        | BYOK: `openai` / `azure` / `anthropic`                   | —                                                                                                                             |
+| `BYOK_API_KEY`                         | BYOK: API キー                                           | —                                                                                                                             |
+| `BYOK_BASE_URL`                        | BYOK: API ベース URL                                     | —                                                                                                                             |
+| `VITE_SERVER_URL`                      | クライアント接続先（開発時のproxy先）                    | `http://127.0.0.1:3001`                                                                                                       |
+| `CORS_ORIGINS`                         | CORS許可オリジン（`,` 区切り）                           | `http://localhost:5173,http://127.0.0.1:5173,http://[::1]:5173,http://localhost:3001,http://127.0.0.1:3001,http://[::1]:3001` |
+| `COPILOT_CLI_PATH`                     | Copilot CLI のパス（未設定時は自動探索）                 | `copilot`                                                                                                                     |
+| `COPILOT_MODELS`                       | `models:list` 失敗時のフォールバックモデル（`,` 区切り） | （未設定）                                                                                                                    |
+| `COPILOT_LOG_LEVEL`                    | ログレベル                                               | `info`                                                                                                                        |
+| `ENABLE_WEB_SEARCH_FALLBACK`           | Web検索フォールバック有効化 (`true/false`)               | 開発環境 `true`、本番 `false`                                                                                                 |
+| `WEB_SEARCH_FALLBACK_MODEL`            | フォールバック実行モデル                                 | `gpt-5-mini`                                                                                                                  |
+| `WEB_SEARCH_FALLBACK_TIMEOUT_MS`       | フォールバックCLIタイムアウト（ms）                      | `90000`                                                                                                                       |
+| `WEB_SEARCH_FALLBACK_ALLOW_ALL_URLS`   | URL制限を無効化して全URL許可 (`true/false`)              | `false`                                                                                                                       |
+| `WEB_SEARCH_FALLBACK_ALLOWED_URLS`     | 許可URL/ドメイン（`,`区切り）                            | `weather.gov,www.jma.go.jp,tenki.jp,www.bbc.com,www.reuters.com,apnews.com,www.nhk.or.jp,www.nikkei.com`                      |
+| `WEB_SEARCH_FALLBACK_DEFAULT_LOCATION` | 地域未指定時の優先地域（例: `Tokyo, Japan`）             | （未設定）                                                                                                                    |
+| `WEB_SEARCH_FALLBACK_DEFAULT_LOCALE`   | 地域推定の優先ロケール（例: `ja-JP`）                    | （未設定）                                                                                                                    |
+| `WEB_SEARCH_FALLBACK_DEFAULT_TIMEZONE` | 地域推定の既定タイムゾーン（例: `Asia/Tokyo`）           | （未設定）                                                                                                                    |
+| `STRICT_TOOL_PERMISSIONS`              | ツール権限の厳格モード (`true/false`)                    | 非ローカル運用時 `true`、ローカル運用時 `false`                                                                               |
+| `PERMISSION_ALLOW_KINDS`               | 許可する権限種別（`,`区切り）                            | `read,url,mcp`                                                                                                                |
 
 ### Web Search Fallback 許可ドメイン運用基準
 

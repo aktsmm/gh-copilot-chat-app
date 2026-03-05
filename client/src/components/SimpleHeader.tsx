@@ -4,6 +4,7 @@
  */
 
 import { Plus, PanelLeft, Settings2 } from "lucide-react";
+import { useCallback } from "react";
 import type { RefObject } from "react";
 import type { UiLanguage } from "../lib/types";
 import { t } from "../lib/i18n";
@@ -23,6 +24,7 @@ interface Props {
   language: UiLanguage;
   quotaUsageRatePercent?: number | null;
   quotaUsageRatio?: string | null;
+  localServerUrl?: string | null;
 }
 
 export function SimpleHeader({
@@ -40,7 +42,18 @@ export function SimpleHeader({
   language,
   quotaUsageRatePercent,
   quotaUsageRatio,
+  localServerUrl,
 }: Props) {
+  const copyLocalServerUrl = useCallback(() => {
+    if (!localServerUrl) return;
+    const writeText =
+      typeof navigator !== "undefined" && navigator.clipboard
+        ? navigator.clipboard.writeText.bind(navigator.clipboard)
+        : undefined;
+    if (!writeText) return;
+    void writeText(localServerUrl).catch(() => undefined);
+  }, [localServerUrl]);
+
   return (
     <header className="flex items-center h-12 px-3 gap-2 border-b border-surface-dark-2 bg-surface-dark-1/80 backdrop-blur-sm shrink-0">
       {/* History toggle */}
@@ -91,6 +104,18 @@ export function SimpleHeader({
         {t(language, "modelRateMultiplier")}:{" "}
         {activeModelRateMultiplierLabel ?? "—"}
       </span>
+
+      {localServerUrl && (
+        <button
+          type="button"
+          onClick={copyLocalServerUrl}
+          className="hidden xl:inline text-[10px] whitespace-nowrap rounded px-1.5 py-0.5 max-w-[300px] truncate bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:text-white hover:bg-surface-dark-3"
+          title={`${t(language, "copy")}: ${localServerUrl}`}
+          aria-label={`${t(language, "localServerUrl")}: ${localServerUrl}`}
+        >
+          {t(language, "localServerUrl")}: {localServerUrl}
+        </button>
+      )}
 
       <span className="hidden md:inline text-[10px] text-gray-500 whitespace-nowrap">
         {t(language, "quotaUsageRate")}:{" "}

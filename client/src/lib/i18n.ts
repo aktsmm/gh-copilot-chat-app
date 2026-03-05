@@ -127,7 +127,8 @@ type I18nKey =
   | "personaPresetCustom"
   | "personaPresetImplementation"
   | "personaPresetReview"
-  | "personaPresetResearch";
+  | "personaPresetResearch"
+  | "localServerUrl";
 
 const dict: Record<UiLanguage, Record<I18nKey, string>> = {
   ja: {
@@ -260,6 +261,7 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     personaPresetImplementation: "実装用",
     personaPresetReview: "レビュー用",
     personaPresetResearch: "調査用",
+    localServerUrl: "ローカルURL",
   },
   en: {
     appTitle: "GitHub Copilot Chat",
@@ -392,6 +394,7 @@ const dict: Record<UiLanguage, Record<I18nKey, string>> = {
     personaPresetImplementation: "Implementation",
     personaPresetReview: "Review",
     personaPresetResearch: "Research",
+    localServerUrl: "Local URL",
   },
 };
 

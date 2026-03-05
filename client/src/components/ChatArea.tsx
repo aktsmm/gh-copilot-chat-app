@@ -17,6 +17,7 @@ import { TypingIndicator } from "./TypingIndicator";
 import { ChatInput } from "./ChatInput";
 import { StreamingBubble } from "./StreamingBubble";
 import { t } from "../lib/i18n";
+import { getLocalServerUrl } from "../lib/runtime-url";
 
 function getToolOptionValue(tool: ToolInfoLite): string {
   return tool.namespacedName ?? tool.name;
@@ -69,6 +70,7 @@ export function ChatArea({
 }: ChatAreaProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const localServerUrl = useMemo(() => getLocalServerUrl(), []);
   const [researchMode, setResearchMode] = useState(false);
   const [toolPolicyMode, setToolPolicyMode] = useState<
     "all" | "allow" | "exclude"
@@ -192,6 +194,16 @@ export function ChatArea({
     });
   };
 
+  const copyLocalServerUrl = useCallback(() => {
+    if (!localServerUrl) return;
+    const writeText =
+      typeof navigator !== "undefined" && navigator.clipboard
+        ? navigator.clipboard.writeText.bind(navigator.clipboard)
+        : undefined;
+    if (!writeText) return;
+    void writeText(localServerUrl).catch(() => undefined);
+  }, [localServerUrl]);
+
   // Auto-scroll to bottom on new messages / streaming
   useEffect(() => {
     if (!isNearBottom()) return;
@@ -200,7 +212,6 @@ export function ChatArea({
     });
   }, [
     conversation.messages.length,
-    streamBuffer,
     activeTools.length,
     isGenerating,
     isNearBottom,
@@ -225,6 +236,17 @@ export function ChatArea({
           )}
         </div>
         <div className="flex items-center gap-1.5">
+          {localServerUrl && (
+            <button
+              type="button"
+              onClick={copyLocalServerUrl}
+              className="hidden xl:inline text-[10px] whitespace-nowrap rounded px-1.5 py-0.5 bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:text-white hover:bg-surface-dark-3"
+              title={`${t(language, "copy")}: ${localServerUrl}`}
+              aria-label={`${t(language, "localServerUrl")}: ${localServerUrl}`}
+            >
+              {t(language, "localServerUrl")}: {localServerUrl}
+            </button>
+          )}
           <select
             value={mode}
             onChange={(e) => onModeChange(e.target.value as AgentMode)}

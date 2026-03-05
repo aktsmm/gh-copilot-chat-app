@@ -48,12 +48,9 @@ import {
   type ChatErrorCode,
 } from "../../../shared/chat-error-code.js";
 
-const FALLBACK_MODELS = [
-  "gpt-5",
-  "gpt-5.3-codex",
-  "gpt-4.1",
-  "claude-sonnet-4.6",
-];
+const DEFAULT_MODEL_ID = "gpt-4.1";
+
+type ResponseLanguage = "ja" | "en";
 
 const REASONING_EFFORTS: ReasoningEffort[] = ["low", "medium", "high", "xhigh"];
 
@@ -111,11 +108,7 @@ function isAgentMode(value: unknown): value is AgentMode {
 
 function normalizeModelCatalog(payload: unknown): ModelInfoLite[] {
   if (!Array.isArray(payload)) {
-    return FALLBACK_MODELS.map((id) => ({
-      id,
-      name: id,
-      reasoningSupported: false,
-    }));
+    return [];
   }
 
   const catalog = payload
@@ -189,11 +182,7 @@ function normalizeModelCatalog(payload: unknown): ModelInfoLite[] {
     .filter((value): value is ModelInfoLite => Boolean(value));
 
   if (catalog.length === 0) {
-    return FALLBACK_MODELS.map((id) => ({
-      id,
-      name: id,
-      reasoningSupported: false,
-    }));
+    return [];
   }
 
   const byId = new Map<string, ModelInfoLite>();
@@ -369,7 +358,7 @@ function normalizeSessionList(payload: unknown) {
       return {
         id,
         title: toNonEmptyString(item.title) ?? "New Chat",
-        model: toNonEmptyString(item.model) ?? FALLBACK_MODELS[0],
+        model: toNonEmptyString(item.model) ?? DEFAULT_MODEL_ID,
         createdAt,
         lastUsed,
         mode,
@@ -409,6 +398,32 @@ function buildResearchPrompt(prompt: string, language: "ja" | "en"): string {
     "---",
     prompt,
   ].join("\n");
+}
+
+function detectResponseLanguage(
+  prompt: string,
+  uiLanguage: UiLanguage,
+): ResponseLanguage {
+  const trimmed = prompt.trim();
+  if (!trimmed) {
+    return uiLanguage === "ja" ? "ja" : "en";
+  }
+
+  const japaneseCount = (trimmed.match(/[ぁ-んァ-ン一-龥々〆ヵヶ]/g) ?? [])
+    .length;
+  const englishCount = (trimmed.match(/[A-Za-z]/g) ?? []).length;
+
+  if (japaneseCount === 0 && englishCount === 0) {
+    return uiLanguage === "ja" ? "ja" : "en";
+  }
+  if (japaneseCount === 0) {
+    return "en";
+  }
+  if (englishCount === 0) {
+    return "ja";
+  }
+
+  return japaneseCount >= englishCount ? "ja" : "en";
 }
 
 function isHttpUrl(value: string): boolean {
@@ -842,9 +857,16 @@ export function useChat() {
 
     const requestCapabilities = () => {
       requestSessions();
-      requestModels();
-      requestTools();
-      requestQuota();
+    };
+
+    const scheduleCapabilitiesWarmup = () => {
+      window.setTimeout(() => {
+        requestModels();
+        requestQuota();
+        if (activeIdRef.current) {
+          requestTools();
+        }
+      }, 1200);
     };
 
     const onDelta = (payload: unknown) => {
@@ -1031,6 +1053,11 @@ export function useChat() {
       }
     };
 
+    const onConnect = () => {
+      requestCapabilities();
+      scheduleCapabilitiesWarmup();
+    };
+
     s.on("chat:delta", onDelta);
     s.on("chat:message", onMessage);
     s.on("chat:idle", onIdle);
@@ -1043,10 +1070,11 @@ export function useChat() {
     s.on("chat:tools_updated", onToolsUpdated);
     s.on("chat:compacted", onCompacted);
     s.on("chat:fleet_started", onFleetStarted);
-    s.on("connect", requestCapabilities);
+    s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
 
     requestCapabilities();
+    scheduleCapabilitiesWarmup();
 
     return () => {
       s.off("chat:delta", onDelta);
@@ -1061,12 +1089,15 @@ export function useChat() {
       s.off("chat:tools_updated", onToolsUpdated);
       s.off("chat:compacted", onCompacted);
       s.off("chat:fleet_started", onFleetStarted);
-      s.off("connect", requestCapabilities);
+      s.off("connect", onConnect);
       s.off("disconnect", onDisconnect);
     };
   }, [consumeFleetStartAckError, markGeneratingState, pushSystemErrorNotice]);
 
   useEffect(() => {
+    if (!store.active?.id) return;
+    if (!socketRef.current.connected) return;
+
     const activeModel = store.active?.model?.trim();
     const model =
       activeModel && activeModel.length > 0
@@ -1155,9 +1186,12 @@ export function useChat() {
           }
 
           const userPrompt = opts.initialPrompt?.trim();
+          const responseLanguage = userPrompt
+            ? detectResponseLanguage(userPrompt, store.uiLanguage)
+            : store.uiLanguage;
           const assistantPrompt =
             userPrompt && opts.useDeepResearchPrompt
-              ? buildResearchPrompt(userPrompt, store.uiLanguage)
+              ? buildResearchPrompt(userPrompt, responseLanguage)
               : userPrompt;
 
           addConversation({
@@ -1204,6 +1238,7 @@ export function useChat() {
               sessionId,
               prompt: assistantPrompt,
               mode,
+              responseLanguage,
               preferredLocale: localeContext.preferredLocale,
               locale: localeContext.locale,
               timeZone: localeContext.timeZone,
@@ -1231,9 +1266,10 @@ export function useChat() {
       if (!id || !prompt.trim()) return;
       if (!ensureSocketConnected(id)) return;
       const mode = options?.mode ?? store.preferredAgentMode;
+      const responseLanguage = detectResponseLanguage(prompt, store.uiLanguage);
 
       const runtimePrompt = options?.useDeepResearchPrompt
-        ? buildResearchPrompt(prompt, store.uiLanguage)
+        ? buildResearchPrompt(prompt, responseLanguage)
         : prompt;
 
       // Optimistic user message
@@ -1261,6 +1297,7 @@ export function useChat() {
         sessionId: id,
         prompt: runtimePrompt,
         mode,
+        responseLanguage,
         preferredLocale: localeContext.preferredLocale,
         locale: localeContext.locale,
         timeZone: localeContext.timeZone,

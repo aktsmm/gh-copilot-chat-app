@@ -8,6 +8,7 @@ import { useChat } from "./lib/useChat";
 import { useChatStore } from "./lib/store";
 import { getSkills } from "./lib/skills";
 import { t } from "./lib/i18n";
+import { getLocalServerUrl } from "./lib/runtime-url";
 import { Sidebar } from "./components/Sidebar";
 import { ChatArea } from "./components/ChatArea";
 import { WelcomeScreen } from "./components/WelcomeScreen";
@@ -55,6 +56,7 @@ export function App() {
 
 function AdvancedApp() {
   const chat = useChat();
+  const localServerUrl = useMemo(() => getLocalServerUrl(), []);
   const skills = useMemo(() => getSkills(chat.uiLanguage), [chat.uiLanguage]);
   const selectedModelInfo = useMemo(
     () => chat.modelCatalog.find((model) => model.id === chat.preferredModel),
@@ -140,7 +142,25 @@ function AdvancedApp() {
       {/* Main area */}
       <main className="flex-1 flex flex-col min-w-0 relative">
         {!chat.active && (
-          <div className="absolute top-3 right-3 z-20">
+          <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-1">
+            {localServerUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  const writeText =
+                    typeof navigator !== "undefined" && navigator.clipboard
+                      ? navigator.clipboard.writeText.bind(navigator.clipboard)
+                      : undefined;
+                  if (!writeText) return;
+                  void writeText(localServerUrl).catch(() => undefined);
+                }}
+                className="text-[10px] rounded px-2 py-1 bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:text-white hover:bg-surface-dark-3"
+                title={`${t(chat.uiLanguage, "copy")}: ${localServerUrl}`}
+                aria-label={`${t(chat.uiLanguage, "localServerUrl")}: ${localServerUrl}`}
+              >
+                {t(chat.uiLanguage, "localServerUrl")}: {localServerUrl}
+              </button>
+            )}
             <button
               onClick={() => chat.setUiMode("simple")}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:text-white hover:border-brand-500/40 transition-colors"

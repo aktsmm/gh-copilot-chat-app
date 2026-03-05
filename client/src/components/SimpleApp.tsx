@@ -11,6 +11,7 @@ import { X } from "lucide-react";
 import { setUiMode } from "../lib/store";
 import { useChat } from "../lib/useChat";
 import { t } from "../lib/i18n";
+import { getLocalServerUrl } from "../lib/runtime-url";
 import type { ChatMessage, UiLanguage } from "../lib/types";
 import { MessageBubble } from "./MessageBubble";
 import { StreamingBubble } from "./StreamingBubble";
@@ -256,6 +257,7 @@ export default function SimpleApp() {
   const activeModelRateMultiplierLabel = modelRateMultiplierById.get(
     active?.model ?? preferredModel,
   );
+  const localServerUrl = useMemo(() => getLocalServerUrl(), []);
 
   const isNearBottom = useCallback((): boolean => {
     const container = messagesContainerRef.current;
@@ -275,13 +277,7 @@ export default function SimpleApp() {
     messagesEndRef.current?.scrollIntoView({
       behavior: isGenerating ? "auto" : "smooth",
     });
-  }, [
-    messages.length,
-    streamBuffer,
-    activeTools.length,
-    isGenerating,
-    isNearBottom,
-  ]);
+  }, [messages.length, activeTools.length, isGenerating, isNearBottom]);
 
   const handleSend = useCallback(
     (prompt: string) => {
@@ -391,6 +387,7 @@ export default function SimpleApp() {
         language={language}
         quotaUsageRatePercent={quotaUsageRatePercent}
         quotaUsageRatio={quotaUsageRatio}
+        localServerUrl={localServerUrl}
       />
 
       {/* History drawer */}

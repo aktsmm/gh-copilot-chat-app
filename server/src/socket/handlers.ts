@@ -2,7 +2,7 @@
  * Socket.IO handler — real-time streaming bridge between browser ↔ Copilot SDK.
  *
  * Events (client → server):
- *   chat:send       { sessionId, prompt, mode?, startFleet?, preferredLocation?, preferredLocale?, locale?, timeZone? }
+ *   chat:send       { sessionId, prompt, mode?, startFleet?, responseLanguage?, preferredLocation?, preferredLocale?, locale?, timeZone? }
  *   chat:create     { model?, mode?, reasoningEffort?, availableTools?, excludedTools?, systemMessage?, title? }
  *   chat:abort      { sessionId }
  *   session:mode    { sessionId, mode? }
@@ -66,6 +66,7 @@ type ToolsSettled = PromiseSettledResult<{ tools?: unknown } | undefined>;
 type QuotaSettled = PromiseSettledResult<
   { quotaSnapshots?: Record<string, unknown> } | undefined
 >;
+type ResponseLanguage = "ja" | "en";
 
 export type { ChatErrorCode } from "../../../shared/chat-error-code.js";
 
@@ -258,6 +259,53 @@ function buildPromptWithFallbackCarryover(
     fallbackCarryover,
     "",
     "User message:",
+    prompt,
+  ].join("\n");
+}
+
+function isResponseLanguage(value: unknown): value is ResponseLanguage {
+  return value === "ja" || value === "en";
+}
+
+function resolveResponseLanguage(
+  responseLanguage: unknown,
+  preferredLocale?: string,
+  locale?: string,
+): ResponseLanguage | undefined {
+  if (isResponseLanguage(responseLanguage)) {
+    return responseLanguage;
+  }
+
+  if (responseLanguage != null) {
+    return undefined;
+  }
+
+  const localeCandidate = (preferredLocale ?? locale ?? "").toLowerCase();
+  if (!localeCandidate) {
+    return undefined;
+  }
+  return localeCandidate.startsWith("ja") ? "ja" : "en";
+}
+
+function buildPromptWithResponseLanguage(
+  prompt: string,
+  responseLanguage: ResponseLanguage | undefined,
+): string {
+  if (!responseLanguage) {
+    return prompt;
+  }
+
+  if (responseLanguage === "ja") {
+    return [
+      "以下のユーザーメッセージには日本語で回答してください。",
+      "",
+      prompt,
+    ].join("\n");
+  }
+
+  return [
+    "Please respond in English to the following user message.",
+    "",
     prompt,
   ].join("\n");
 }
@@ -894,10 +942,16 @@ export function registerSocketHandlers(
       const sessionId = toTrimmedString(body.sessionId);
       const prompt = toTrimmedString(body.prompt);
       const startFleet = toBoolean(body.startFleet);
+      const rawResponseLanguage = toTrimmedString(body.responseLanguage);
       const preferredLocation = toTrimmedString(body.preferredLocation);
       const preferredLocale = toTrimmedString(body.preferredLocale);
       const locale = toTrimmedString(body.locale);
       const timeZone = toTrimmedString(body.timeZone);
+      const responseLanguage = resolveResponseLanguage(
+        rawResponseLanguage,
+        preferredLocale,
+        locale,
+      );
       if (!sessionId || !prompt) {
         emitChatError(
           socket,
@@ -989,7 +1043,9 @@ export function registerSocketHandlers(
                   config.copilot.webSearchFallbackDefaultLocation,
                 preferredLocale:
                   preferredLocale ??
-                  config.copilot.webSearchFallbackDefaultLocale,
+                  (responseLanguage === "ja"
+                    ? "ja-JP"
+                    : config.copilot.webSearchFallbackDefaultLocale),
                 locale,
                 timeZone:
                   timeZone ?? config.copilot.webSearchFallbackDefaultTimeZone,
@@ -1027,7 +1083,13 @@ export function registerSocketHandlers(
           prompt,
           consumeFallbackCarryover(sessionId),
         );
-        await entry.session.send({ prompt: promptWithCarryover });
+        const promptWithLanguage = buildPromptWithResponseLanguage(
+          promptWithCarryover,
+          isResponseLanguage(rawResponseLanguage)
+            ? rawResponseLanguage
+            : undefined,
+        );
+        await entry.session.send({ prompt: promptWithLanguage });
       } catch (err: unknown) {
         emitChatError(
           socket,
@@ -1296,12 +1358,18 @@ export function registerSocketHandlers(
     // ── List available models ───────────────────────────────
     socket.on("models:list", async (payload: unknown, ack?: SocketAck) => {
       const callback = resolveAck(payload, ack);
+      const fallbackModels = config.copilot.availableModels;
       try {
         const client = await getClientImpl();
         const models = await client.listModels();
-        callback?.(models ?? []);
+        if (Array.isArray(models) && models.length > 0) {
+          callback?.(models);
+          return;
+        }
+
+        callback?.(fallbackModels);
       } catch (err: unknown) {
-        callback?.([]);
+        callback?.(fallbackModels);
         emitSystemError(err, "Failed to load models");
       }
     });

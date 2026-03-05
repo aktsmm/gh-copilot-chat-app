@@ -46,7 +46,7 @@
 
   /* Message bubble base */
   .msg-bubble {
-    @apply max-w-[85%] rounded-2xl px-4 py-3 animate-slide-up;
+    @apply max-w-[85%] rounded-2xl px-4 py-3;
   }
   .msg-user {
     @apply bg-brand-600 text-white ml-auto rounded-br-md;
@@ -83,7 +83,7 @@
     @apply w-full resize-none bg-surface-dark-2 border border-surface-dark-3 rounded-xl
            px-4 py-3 text-gray-100 placeholder-gray-500
            focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500
-           transition-all;
+           transition-colors;
   }
 }
 

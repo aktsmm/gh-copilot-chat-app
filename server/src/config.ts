@@ -126,6 +126,12 @@ function parseCommaSeparatedEnv(raw: string | undefined): string[] {
   return [...new Set(parsed)];
 }
 
+function parseCopilotModels(raw: string | undefined): string[] {
+  return parseCommaSeparatedEnv(raw)
+    .map((model) => model.trim())
+    .filter((model) => model.length > 0);
+}
+
 function includesNodeModulesBinPath(candidate: string): boolean {
   return candidate
     .toLowerCase()
@@ -281,8 +287,21 @@ function resolveWindowsNpmGlobalCopilotCliPath(): string | undefined {
   const npmGlobalDir = path.join(appData, "npm", "node_modules");
   const candidates = [
     path.join(npmGlobalDir, "@github", "copilot-win32-x64", "copilot.exe"),
+    path.join(npmGlobalDir, "@github", "copilot-win32-arm64", "copilot.exe"),
     path.join(
       npmGlobalDir,
+      "@github",
+      "copilot",
+      "node_modules",
+      "@github",
+      "copilot-win32-x64",
+      "copilot.exe",
+    ),
+    path.join(
+      npmGlobalDir,
+      "@github",
+      "copilot",
+      "node_modules",
       "@github",
       "copilot-win32-arm64",
       "copilot.exe",
@@ -456,6 +475,7 @@ const chatErrorUnknownWarnThreshold = parsePositiveIntegerEnv(
   process.env.CHAT_ERROR_UNKNOWN_WARN_THRESHOLD,
   10,
 );
+const configuredCopilotModels = parseCopilotModels(process.env.COPILOT_MODELS);
 const allowedPermissionKinds = parseAllowedPermissionKinds(
   process.env.PERMISSION_ALLOW_KINDS,
 );
@@ -501,6 +521,20 @@ let resolvedCopilotCliPath: string | undefined;
 function getCopilotCliPath(): string {
   if (!resolvedCopilotCliPath) {
     resolvedCopilotCliPath = resolveCopilotCliPath();
+
+    const hasExplicitEnvPath =
+      typeof process.env.COPILOT_CLI_PATH === "string" &&
+      process.env.COPILOT_CLI_PATH.trim().length > 0;
+    if (!hasExplicitEnvPath) {
+      const normalized = resolvedCopilotCliPath.trim().toLowerCase();
+      const canAutoSet =
+        normalized.length > 0 &&
+        normalized !== "copilot" &&
+        normalized !== "copilot.exe";
+      if (canAutoSet) {
+        process.env.COPILOT_CLI_PATH = resolvedCopilotCliPath;
+      }
+    }
   }
   return resolvedCopilotCliPath;
 }
@@ -535,6 +569,7 @@ export const config = {
     get cliPath() {
       return getCopilotCliPath();
     },
+    availableModels: configuredCopilotModels,
     logLevel: process.env.COPILOT_LOG_LEVEL ?? "info",
     enableWebSearchFallback,
     webSearchFallbackModel,

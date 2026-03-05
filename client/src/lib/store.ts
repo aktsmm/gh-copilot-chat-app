@@ -23,12 +23,7 @@ import type {
 } from "./types";
 
 const SETTINGS_KEY = "ghc-chat-settings-v1";
-const DEFAULT_MODELS = [
-  "gpt-5",
-  "gpt-5.3-codex",
-  "gpt-4.1",
-  "claude-sonnet-4.6",
-] as const;
+const DEFAULT_MODELS = ["gpt-4.1"] as const;
 
 function shouldHideModel(modelId: string): boolean {
   const normalized = modelId.trim();
@@ -175,9 +170,7 @@ function normalizeReasoningPreferenceForModel(modelId: string) {
 
 function normalizeModels(models: string[]): string[] {
   const normalized = models.map((model) => model.trim()).filter(Boolean);
-
-  const source = normalized.length > 0 ? normalized : [...DEFAULT_MODELS];
-  return [...new Set(source)].filter((model) => !shouldHideModel(model));
+  return [...new Set(normalized)].filter((model) => !shouldHideModel(model));
 }
 
 // ── State ───────────────────────────────────────────────────
@@ -571,7 +564,11 @@ export function completeActiveTool(
 }
 
 export function setAvailableModels(models: string[]) {
-  state.availableModels = normalizeModels(models);
+  const normalized = normalizeModels(models);
+  state.availableModels =
+    normalized.length > 0
+      ? normalized
+      : normalizeModels([state.preferredModel, DEFAULT_MODELS[0]]);
   if (!state.availableModels.includes(state.preferredModel)) {
     state.preferredModel = state.availableModels[0] ?? DEFAULT_MODELS[0];
   }
@@ -582,7 +579,15 @@ export function setAvailableModels(models: string[]) {
 
 export function setModelCatalog(models: ModelInfoLite[]) {
   state.modelCatalog = models;
-  state.availableModels = normalizeModels(models.map((model) => model.id));
+  const dynamicModels = normalizeModels(models.map((model) => model.id));
+  if (dynamicModels.length > 0) {
+    state.availableModels = dynamicModels;
+  } else if (state.availableModels.length === 0) {
+    state.availableModels = normalizeModels([
+      state.preferredModel,
+      DEFAULT_MODELS[0],
+    ]);
+  }
   if (!state.availableModels.includes(state.preferredModel)) {
     state.preferredModel = state.availableModels[0] ?? DEFAULT_MODELS[0];
   }

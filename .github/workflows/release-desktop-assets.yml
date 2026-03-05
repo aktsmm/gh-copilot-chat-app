@@ -83,6 +83,9 @@ jobs:
 
       - name: Create ZIP bundles and checksums
         shell: pwsh
+        env:
+          MAX_SETUP_ZIP_MB: "0"
+          MAX_PORTABLE_ZIP_MB: "0"
         run: |
           $dist = Resolve-Path "desktop/dist"
           $version = "${{ steps.release_tag.outputs.version }}"
@@ -118,6 +121,35 @@ jobs:
             "$hash *$([System.IO.Path]::GetFileName($target))"
           }
           Set-Content -Path $shaPath -Value $lines -Encoding utf8
+
+          $setupZipBytes = (Get-Item -LiteralPath $setupZip).Length
+          $portableZipBytes = (Get-Item -LiteralPath $portableZip).Length
+          $setupZipMb = [math]::Round($setupZipBytes / 1MB, 2)
+          $portableZipMb = [math]::Round($portableZipBytes / 1MB, 2)
+
+          "setup_zip_mb=$setupZipMb" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "portable_zip_mb=$portableZipMb" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          if ($env:GITHUB_STEP_SUMMARY) {
+            @(
+              "## Desktop artifact sizes",
+              "",
+              "- Setup ZIP: ${setupZipMb} MB",
+              "- Portable ZIP: ${portableZipMb} MB"
+            ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
+
+          $maxSetupZipMb = 0
+          $maxPortableZipMb = 0
+          [int]::TryParse($env:MAX_SETUP_ZIP_MB, [ref]$maxSetupZipMb) | Out-Null
+          [int]::TryParse($env:MAX_PORTABLE_ZIP_MB, [ref]$maxPortableZipMb) | Out-Null
+
+          if ($maxSetupZipMb -gt 0 -and $setupZipMb -gt $maxSetupZipMb) {
+            throw "Setup ZIP exceeds limit: ${setupZipMb} MB > ${maxSetupZipMb} MB"
+          }
+          if ($maxPortableZipMb -gt 0 -and $portableZipMb -gt $maxPortableZipMb) {
+            throw "Portable ZIP exceeds limit: ${portableZipMb} MB > ${maxPortableZipMb} MB"
+          }
 
       - name: Upload desktop assets to GitHub Release
         uses: softprops/action-gh-release@v2
