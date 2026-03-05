@@ -261,7 +261,7 @@ export function ChatArea({
             <button
               type="button"
               onClick={copyLocalServerUrl}
-              className="hidden xl:inline text-[10px] whitespace-nowrap rounded px-1.5 py-0.5 bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:text-white hover:bg-surface-dark-3"
+              className="text-[10px] whitespace-nowrap rounded px-1.5 py-0.5 bg-surface-dark-2 border border-surface-dark-3 text-gray-300 hover:text-white hover:bg-surface-dark-3"
               title={`${t(language, "copy")}: ${localServerUrl}`}
               aria-label={`${t(language, "localServerUrl")}: ${localServerUrl}`}
             >

@@ -46,6 +46,13 @@ latest*.yml
 tmp-*.ps1
 /output_sessions/
 
+# Code signing (contains internal MS links / ESRP secrets)
+docs/code-signing-guide.md
+*.pfx
+*.cer
+*.p12
+codesign-*.json
+
 # Local AI workflow metadata (not required for app runtime)
 # AGENTS.md  ← Challenge 提出で必要なため除外解除
 .github/skills/

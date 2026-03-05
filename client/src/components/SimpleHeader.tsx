@@ -151,7 +151,7 @@ export function SimpleHeader({
         <button
           type="button"
           onClick={copyLocalServerUrl}
-          className="hidden xl:inline text-[12px] whitespace-nowrap rounded-md px-2.5 py-1 max-w-[360px] truncate bg-surface-dark-3 border border-surface-dark-4 text-gray-100 hover:text-white hover:bg-surface-dark-4"
+          className="text-[12px] whitespace-nowrap rounded-md px-2.5 py-1 max-w-[360px] truncate bg-surface-dark-3 border border-surface-dark-4 text-gray-100 hover:text-white hover:bg-surface-dark-4"
           title={`${t(language, "copy")}: ${localServerUrl}`}
           aria-label={`${t(language, "localServerUrl")}: ${localServerUrl}`}
         >
