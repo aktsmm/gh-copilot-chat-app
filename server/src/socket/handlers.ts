@@ -55,10 +55,6 @@ import {
 type SessionMode = AgentMode;
 type SocketAck = (payload: unknown) => void;
 
-interface SessionScopedPayload {
-  sessionId?: string;
-}
-
 type SessionListEntry = ReturnType<typeof listSessions>[number];
 
 type ModelsSettled = PromiseSettledResult<string[] | undefined>;
