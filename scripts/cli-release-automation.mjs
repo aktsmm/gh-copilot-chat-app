@@ -6,12 +6,8 @@ const defaultReleaseRepo =
   process.env.CLI_RELEASE_REPO?.trim() || "github/copilot-cli";
 const forceUpdate = parseBoolean(process.env.CLI_RELEASE_FORCE);
 
-const stateFilePath = path.join(
-  rootDir,
-  ".github",
-  "automation",
-  "cli-release-state.json",
-);
+const stateDirPath = path.join(rootDir, ".github", "automation");
+const legacyStateFilePath = path.join(stateDirPath, "cli-release-state.json");
 const storeFilePath = path.join(rootDir, "client", "src", "lib", "store.ts");
 const useChatFilePath = path.join(
   rootDir,
@@ -198,14 +194,9 @@ function updateUseChatDefaultModels(filePath, preferredModels) {
     };
   }
 
-  console.warn(
-    `No supported useChat model constant found in ${filePath}; skipping update.`,
+  throw new Error(
+    `No supported useChat model constant found in ${filePath}; expected FALLBACK_MODELS or DEFAULT_MODEL_ID.`,
   );
-  return {
-    changed: false,
-    nextModels: preferredModels,
-    strategy: "none",
-  };
 }
 
 function extractModelIds(text) {
@@ -237,6 +228,17 @@ function sanitizeForFileName(value) {
   return normalized || "unknown";
 }
 
+function getStateFilePath(repo) {
+  if (repo === "github/copilot-cli") {
+    return legacyStateFilePath;
+  }
+
+  return path.join(
+    stateDirPath,
+    `cli-release-state--${sanitizeForFileName(repo)}.json`,
+  );
+}
+
 function toDatePrefix(date) {
   const yyyy = date.getUTCFullYear();
   const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -254,23 +256,58 @@ function isRetryableStatus(status) {
   return status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
+function getRateLimitRetryDelay(response, detail, attempt) {
+  const remaining = response.headers.get("x-ratelimit-remaining");
+  const resetAt = response.headers.get("x-ratelimit-reset");
+  const normalizedDetail = detail.toLowerCase();
+  const isRateLimited =
+    remaining === "0" ||
+    normalizedDetail.includes("rate limit exceeded") ||
+    normalizedDetail.includes("secondary rate limit");
+
+  if (!isRateLimited) {
+    return undefined;
+  }
+
+  const fallbackDelayMs = Math.min(2000 * attempt, 10000);
+  if (!resetAt) {
+    return fallbackDelayMs;
+  }
+
+  const resetDelayMs = Number(resetAt) * 1000 - Date.now();
+  if (!Number.isFinite(resetDelayMs)) {
+    return fallbackDelayMs;
+  }
+
+  return Math.max(1000, Math.min(resetDelayMs, 10000));
+}
+
 async function fetchWithRetry(url, options, maxAttempts = 3) {
   let lastError;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const response = await fetch(url, options);
-      if (
-        !response.ok &&
-        isRetryableStatus(response.status) &&
-        attempt < maxAttempts
-      ) {
+      if (!response.ok && attempt < maxAttempts) {
         const detail = await response.text();
-        console.warn(
-          `Fetch attempt ${attempt}/${maxAttempts} returned ${response.status}; retrying. ${detail.slice(0, 200)}`,
-        );
-        await sleep(1000 * attempt);
-        continue;
+        const retryDelayMs = isRetryableStatus(response.status)
+          ? 1000 * attempt
+          : response.status === 403
+            ? getRateLimitRetryDelay(response, detail, attempt)
+            : undefined;
+
+        if (retryDelayMs !== undefined) {
+          const retryReason =
+            response.status === 403
+              ? "rate limit"
+              : `status ${response.status}`;
+          const resetAt = response.headers.get("x-ratelimit-reset");
+          console.warn(
+            `Fetch attempt ${attempt}/${maxAttempts} hit ${retryReason}; retrying in ${retryDelayMs}ms. ${detail.slice(0, 200)}${resetAt ? ` (reset=${resetAt})` : ""}`,
+          );
+          await sleep(retryDelayMs);
+          continue;
+        }
       }
       return response;
     } catch (error) {
@@ -403,6 +440,7 @@ function formatErrorMessage(error) {
 }
 
 async function main() {
+  const stateFilePath = getStateFilePath(defaultReleaseRepo);
   const token =
     process.env.GITHUB_TOKEN?.trim() ||
     process.env.GH_TOKEN?.trim() ||
