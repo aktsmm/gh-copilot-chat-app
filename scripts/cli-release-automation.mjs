@@ -126,6 +126,88 @@ function updateModelArrayConstant(
   };
 }
 
+function updateStringConstant(filePath, constantName, suffix, nextValue) {
+  const source = fs.readFileSync(filePath, "utf8");
+  const matcher = new RegExp(
+    `(const ${escapeRegExp(constantName)} = ")(.*?)("${escapeRegExp(suffix)})`,
+  );
+  const matched = source.match(matcher);
+
+  if (!matched) {
+    throw new Error(`${constantName} not found in ${filePath}`);
+  }
+
+  if (matched[2] === nextValue) {
+    return {
+      changed: false,
+      currentValue: matched[2],
+      nextValue,
+    };
+  }
+
+  const updated = source.replace(
+    matcher,
+    `${matched[1]}${nextValue}${matched[3]}`,
+  );
+  const changed = writeIfChanged(filePath, updated);
+
+  return {
+    changed,
+    currentValue: matched[2],
+    nextValue,
+  };
+}
+
+function updateUseChatDefaultModels(filePath, preferredModels) {
+  const source = fs.readFileSync(filePath, "utf8");
+
+  if (source.includes("const FALLBACK_MODELS = [")) {
+    const result = updateModelArrayConstant(
+      filePath,
+      "FALLBACK_MODELS",
+      ";",
+      preferredModels,
+    );
+    return {
+      changed: result.changed,
+      nextModels: result.nextModels,
+      strategy: "fallback-array",
+    };
+  }
+
+  if (source.includes('const DEFAULT_MODEL_ID = "')) {
+    const nextDefaultModel = preferredModels[0];
+    if (!nextDefaultModel) {
+      return {
+        changed: false,
+        nextModels: preferredModels,
+        strategy: "default-model-id",
+      };
+    }
+
+    const result = updateStringConstant(
+      filePath,
+      "DEFAULT_MODEL_ID",
+      ";",
+      nextDefaultModel,
+    );
+    return {
+      changed: result.changed,
+      nextModels: [result.nextValue],
+      strategy: "default-model-id",
+    };
+  }
+
+  console.warn(
+    `No supported useChat model constant found in ${filePath}; skipping update.`,
+  );
+  return {
+    changed: false,
+    nextModels: preferredModels,
+    strategy: "none",
+  };
+}
+
 function extractModelIds(text) {
   const patterns = [
     /\b(gpt-\d(?:\.\d+)?(?:-[a-z0-9.]+)*)\b/gi,
@@ -162,6 +244,52 @@ function toDatePrefix(date) {
   return `${yyyy}${mm}${dd}`;
 }
 
+function sleep(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+function isRetryableStatus(status) {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+async function fetchWithRetry(url, options, maxAttempts = 3) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, options);
+      if (
+        !response.ok &&
+        isRetryableStatus(response.status) &&
+        attempt < maxAttempts
+      ) {
+        const detail = await response.text();
+        console.warn(
+          `Fetch attempt ${attempt}/${maxAttempts} returned ${response.status}; retrying. ${detail.slice(0, 200)}`,
+        );
+        await sleep(1000 * attempt);
+        continue;
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts) {
+        throw error;
+      }
+
+      const message = formatErrorMessage(error);
+      console.warn(
+        `Fetch attempt ${attempt}/${maxAttempts} failed; retrying. ${message}`,
+      );
+      await sleep(1000 * attempt);
+    }
+  }
+
+  throw lastError;
+}
+
 async function fetchLatestRelease(repo, token) {
   const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
   const headers = {
@@ -173,7 +301,7 @@ async function fetchLatestRelease(repo, token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(apiUrl, { headers });
+  const response = await fetchWithRetry(apiUrl, { headers });
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(
@@ -260,6 +388,20 @@ function buildReportContent(release, detectedModels, appliedModels) {
   ].join("\n");
 }
 
+function formatErrorMessage(error) {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const parts = [error.message];
+  if (error.cause) {
+    parts.push(
+      `cause: ${error.cause instanceof Error ? error.cause.message : String(error.cause)}`,
+    );
+  }
+  return parts.join(" | ");
+}
+
 async function main() {
   const token =
     process.env.GITHUB_TOKEN?.trim() ||
@@ -300,10 +442,8 @@ async function main() {
     "as const;",
     detectedModels,
   );
-  const useChatResult = updateModelArrayConstant(
+  const useChatResult = updateUseChatDefaultModels(
     useChatFilePath,
-    "FALLBACK_MODELS",
-    ";",
     storeResult.nextModels,
   );
 
@@ -357,7 +497,7 @@ async function main() {
 }
 
 main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = formatErrorMessage(error);
   console.error(`cli-release-automation failed: ${message}`);
   process.exitCode = 1;
 });
