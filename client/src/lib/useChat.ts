@@ -48,7 +48,7 @@ import {
   type ChatErrorCode,
 } from "../../../shared/chat-error-code.js";
 
-const DEFAULT_MODEL_ID = "gpt-4.1";
+const DEFAULT_MODEL_ID = "gpt-5.1-codex";
 
 type ResponseLanguage = "ja" | "en";
 
