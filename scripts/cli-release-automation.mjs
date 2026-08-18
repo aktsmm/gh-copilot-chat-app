@@ -284,7 +284,11 @@ const ADD_SIGNALS = [
   /\bgenerally\s+available\b/i,
 ];
 
-const WEAK_ADD_SIGNALS = [/\bsupport\s+for\b/i, /\bavailable\b/i];
+// A bare "available" is deliberately absent: it also matches negations such as "was not
+// available" or "not yet available in all regions", which would turn a bug-fix note into a model
+// addition. The unambiguous phrasings live in ADD_SIGNALS as "now available" and
+// "generally available".
+const WEAK_ADD_SIGNALS = [/\bsupport\s+for\b/i];
 
 /**
  * Qualifiers that denote a distinct variant of a model rather than the base model.
@@ -1182,9 +1186,11 @@ async function main() {
   aggregate.reverted = allAdded.filter(
     (model) => !workingModels.includes(model),
   );
+  // Models still on the list are kept here on purpose. An ambiguous deprecation only matters
+  // while the model is still shipped, so filtering those out would hide exactly the notes a
+  // human needs to look at.
   aggregate.mentioned = uniqueLower(aggregate.mentioned).filter(
-    (model) =>
-      !workingModels.includes(model) && !aggregate.reverted.includes(model),
+    (model) => !aggregate.reverted.includes(model),
   );
 
   const { models: resolvedModels, defaultModel } = resolveModelList(
