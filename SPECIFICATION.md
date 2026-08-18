@@ -29,8 +29,9 @@
 - [7. セキュリティモデル](#7-セキュリティモデル)
 - [8. CI/CD ワークフロー](#8-cicd-ワークフロー)
   - [8.1 cli-release-auto-pr（自動リリース追従）](#81-cli-release-auto-pr自動リリース追従)
-  - [8.2 smoke-vite-server-url（PR 検証）](#82-smoke-vite-server-urlpr-検証)
-  - [8.3 release-desktop-assets（デスクトップリリース）](#83-release-desktop-assetsデスクトップリリース)
+  - [8.2 cli-release-validate（同期 PR の required check）](#82-cli-release-validate同期-pr-の-required-check)
+  - [8.3 smoke-vite-server-url（PR 検証）](#83-smoke-vite-server-urlpr-検証)
+  - [8.4 release-desktop-assets（デスクトップリリース）](#84-release-desktop-assetsデスクトップリリース)
 
 ---
 
@@ -775,7 +776,7 @@ function isChatErrorCode(value: unknown): value is ChatErrorCode;
 
 ## 8. CI/CD ワークフロー
 
-本プロジェクトでは 3 つの GitHub Actions ワークフローで CI/CD を自動化しています。
+本プロジェクトでは 4 つの GitHub Actions ワークフローで CI/CD を自動化しています。
 
 ### 8.1 cli-release-auto-pr（自動リリース追従）
 
@@ -783,34 +784,51 @@ function isChatErrorCode(value: unknown): value is ChatErrorCode;
 
 ```
 cron (8 時間毎) or 手動 workflow_dispatch
+  │  concurrency: 監視先レポ単位で直列化
+  │
+  ├── default branch を checkout（dispatch 元 ref に依存しない）
   │
   ├── github/copilot-cli の最新リリースを GitHub API で取得
   ├── .github/automation/cli-release-state.json と比較
-  │     └── 新リリースなし → 終了
+  │     └── タグ変化なし → 終了（npm ci より前）
   │
-  ├── 新リリースあり
-  │     ├── リリースノートからモデル ID を正規表現で抽出 (gpt-*, claude-*, o*)
-  │     ├── client/src/lib/store.ts の DEFAULT_MODELS を更新
-  │     ├── client/src/lib/useChat.ts の FALLBACK_MODELS を更新
-  │     ├── reports/ にレポート生成
-  │     └── cli-release-state.json 更新
+  ├── 固定ブランチ automation/cli-release-sync の PR を検査
+  │     ├── 同一タグの Open PR あり → 終了（already-proposed）
+  │     ├── automation:hold ラベルあり → 終了（on-hold）
+  │     └── 同一タグの未マージ Closed PR あり → 終了（rejected）
   │
-  ├── lint + typecheck 検証
+  ├── 前回同期タグ以降の全リリースを取得し、古い順にリプレイ
+  │     ├── 行単位で added / removed / mention-only に分類
+  │     ├── client/src/lib/store.ts の DEFAULT_MODELS を全置換
+  │     ├── client/src/lib/useChat.ts の DEFAULT_MODEL_ID を必要時のみ更新
+  │     ├── reports/<published_at>-cli-release-<tag>.md を生成
+  │     └── cli-release-state.json 更新（実行時刻は書かない）
   │
-  ├── peter-evans/create-pull-request で Draft PR 作成
+  ├── lint + typecheck（プリフライト）
   │
-  └── @copilot にレビュー依頼コメントを自動投稿
-        └── GitHub Copilot Coding Agent がコード差分を確認
+  ├── peter-evans/create-pull-request（SHA 固定）で Ready PR を作成/更新
+  │     └── base = default branch, branch = 固定同期ブランチ
+  │
+  ├── reviewer 再依頼 + @copilot 用スティッキーコメント更新
+  │
+  └── CLI_RELEASE_AUTO_MERGE=true なら auto-merge を有効化
 ```
 
 **入力パラメータ**:
 
 | パラメータ | デフォルト | 説明 |
 |---|---|---|
-| `releaseRepo` | `github/copilot-cli` | 監視対象リポジトリ |
-| `force` | `false` | `true` で前回タグに関係なく強制実行 |
+| `force` | `false` | `true` で前回タグや既存 PR 状態に関係なく強制実行 |
 
-### 8.2 smoke-vite-server-url（PR 検証）
+> 監視先レポは `workflow_dispatch` 入力ではなく Repository Variable `CLI_RELEASE_REPO` で指定します。入力で切り替えると同じ固定ブランチを別ソースが奪い合うため廃止しました。
+
+### 8.2 cli-release-validate（同期 PR の required check）
+
+**ファイル**: `.github/workflows/cli-release-validate.yml`
+
+`pull_request` トリガーで PR head 上の `npm run lint` / `npm run typecheck` を実行します。`cli-release-auto-pr` 側のプリフライトは scheduled run の SHA 上で走るため PR の check にならず、required check にはこちらを使います。
+
+### 8.3 smoke-vite-server-url（PR 検証）
 
 **ファイル**: `.github/workflows/smoke-vite-server-url.yml`
 
@@ -826,7 +844,7 @@ Pull Request 作成 / 更新
 
 すべてのステップが成功しないとマージ不可（branch protection で保護推奨）。
 
-### 8.3 release-desktop-assets（デスクトップリリース）
+### 8.4 release-desktop-assets（デスクトップリリース）
 
 **ファイル**: `.github/workflows/release-desktop-assets.yml`
 

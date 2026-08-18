@@ -58,11 +58,12 @@
 
 | ワークフロー             | トリガー            | 目的                                                                                                  |
 | ------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------- |
-| `cli-release-auto-pr`    | cron (8時間) / 手動 | `github/copilot-cli` の新リリースを検出し、モデルリスト更新 → Draft PR 作成 → `@copilot` レビュー依頼 |
+| `cli-release-auto-pr`    | cron (8時間) / 手動 | `github/copilot-cli` の新リリースを検出し、固定ブランチ 1 本の同期 PR を作成・更新                     |
+| `cli-release-validate`   | Pull Request        | 同期 PR の head 上で lint / typecheck を実行（required check 用）                                      |
 | `smoke-vite-server-url`  | Pull Request        | lint, typecheck, ユニットテスト, Vite スモークテストを実行                                            |
 | `release-desktop-assets` | GitHub Release 公開 | Windows ZIP をビルドしアーティファクトをアップロード                                                  |
 
-> `@copilot` レビューステップは **GitHub Copilot Coding Agent** を利用し、自動作成された Draft PR を自動レビューします。
+> 同期 PR には `@copilot` レビュー依頼コメントが 1 件だけ貼られ、以降は同じコメントが更新されます。Copilot レビューは常に「Comment」であり承認ではないため、マージには人間の承認または auto-merge が必要です。
 
 |               CI/CD ワークフローテスト               |
 | :--------------------------------------------------: |
@@ -380,24 +381,49 @@ npm start
 
 ## CLI リリースノート連動の自動PR
 
-CLI の新しい Release が出たら、既定モデル候補の更新とリリースレポート生成を自動でPR化できます。
+CLI の新しい Release を検出し、既定モデル候補の更新とリリースレポート生成を **固定ブランチ 1 本の PR** に集約します。
 
 - ワークフロー: `.github/workflows/cli-release-auto-pr.yml`
+- 検証ワークフロー: `.github/workflows/cli-release-validate.yml`
 - 実行スクリプト: `scripts/cli-release-automation.mjs`
 - 状態ファイル: `.github/automation/cli-release-state.json`
-- 生成レポート: `reports/YYYYMMDD-cli-release-<tag>.md`
+- 同期ブランチ: `automation/cli-release-sync`（監視先レポごとに 1 本）
+- 生成レポート: `reports/YYYYMMDD-cli-release-<tag>.md`（日付はリリースの `published_at`）
+
+### 設計上の約束
+
+- **PR は常に 1 本**: ブランチ名にリリースタグを含めないため、リリースごとに PR が増えません。
+- **中間リリースを落とさない**: 未マージのまま新リリースが出た場合、base から作り直したうえで前回同期タグ以降の全リリースを古い順にリプレイします。
+- **生成物は決定的**: 実行時刻・実行 ID を一切書き込まないため、同じ base と同じ上流リリース群なら何度実行してもバイト単位で同一の出力になります。タグが変わらない限り force-push は発生しません。
+- **モデル一覧は加算専用ではない**: リリースノートを行単位で分類し、`Removed` / `deprecated` 等の記述はモデルを削除します。明示的な追加シグナルが無い単なる言及はレポートに載るだけで適用されません。
+- **既定モデルは固定**: `useChat.ts` の `DEFAULT_MODEL_ID` が正であり、リリースノートで最初に登場したモデルに勝手に差し替わりません。
 
 ### 実行トリガー
 
 - 定期実行: 8時間ごと（`schedule`）
-- 手動実行: `workflow_dispatch`
+- 手動実行: `workflow_dispatch`（`force` 入力のみ）
 
-### 設定
+### 設定（Repository Variables / Secrets）
 
-- 既定の監視先レポ: `github/copilot-cli`
-- 変更したい場合は以下のどちらかを設定
-  - `workflow_dispatch` の `releaseRepo` 入力
-  - Repository Variables の `CLI_RELEASE_REPO`
+| 名前 | 種別 | 既定 | 用途 |
+| --- | --- | --- | --- |
+| `CLI_RELEASE_REPO` | Variable | `github/copilot-cli` | 監視対象レポ。変更すると同期ブランチと状態ファイルも分離されます |
+| `CLI_RELEASE_REVIEWERS` | Variable | リポジトリオーナー | 同期 PR のレビュー依頼先（カンマ区切り） |
+| `CLI_RELEASE_AUTO_MERGE` | Variable | 未設定（無効） | `true` で required check 成功後の auto-merge を有効化 |
+| `CLI_RELEASE_HOLD_LABEL` | Variable | `automation:hold` | このラベルが付いている間、同期 PR を更新しません |
+| `CLI_RELEASE_APP_ID` | Variable | 未設定 | GitHub App の App ID。設定すると PR head 上で `pull_request` ワークフローが自動起動します |
+| `CLI_RELEASE_APP_PRIVATE_KEY` | Secret | 未設定 | 同 App の秘密鍵 |
+
+### 必要なリポジトリ設定（手動）
+
+1. **Allow auto-merge** を有効化（`CLI_RELEASE_AUTO_MERGE=true` で使う場合のみ）。
+2. **Automatically delete head branches** を有効化すると、マージ後に同期ブランチが確実に削除されます。
+3. GitHub App 未設定の場合、`GITHUB_TOKEN` で作成された PR では `pull_request` ワークフローが起動しません。`cli-release-validate` を手動で起動するか、PR を一度 close → reopen してください。
+
+### 運用（拒否・保留）
+
+- 同期 PR を **未マージで close** すると、同じタグでは再作成されません（次の新リリースで再開）。
+- `automation:hold` ラベルを付けると、新しいリリースが出ても PR は更新されません。
 
 ### ローカル動作確認
 
@@ -408,7 +434,7 @@ npm run automation:cli-release
 新しいリリースが検知された場合に、以下が更新されます。
 
 - `client/src/lib/store.ts` の `DEFAULT_MODELS`
-- `client/src/lib/useChat.ts` の `FALLBACK_MODELS`
+- `client/src/lib/useChat.ts` の `DEFAULT_MODEL_ID`（既定モデルが一覧から消えた場合のみ）
 - `.github/automation/cli-release-state.json`
 - `reports/` 配下のリリースレポート
 
