@@ -1,16 +1,24 @@
 name: cli-release-auto-pr
 
+# Keeps one long-lived sync pull request for the upstream Copilot CLI releases.
+#
+# Why a fixed branch: the previous version used `automation/cli-release-<tag>`, so every
+# upstream release opened a brand new draft pull request and nothing ever closed the old ones
+# (73 stale pull requests accumulated). A single fixed branch means at most one open sync
+# pull request at any time.
+#
+# Why the run can be a no-op: scripts/cli-release-automation.mjs exits before `npm ci` when the
+# latest tag is already proposed, on hold, or was explicitly rejected. Combined with the fully
+# deterministic file generation, the branch head SHA only moves when the upstream tag actually
+# changes, so reviews and checks are not invalidated every 8 hours.
+
 on:
   schedule:
     - cron: "17 */8 * * *"
   workflow_dispatch:
     inputs:
-      releaseRepo:
-        description: "Release source repo (owner/name)"
-        required: false
-        default: "github/copilot-cli"
       force:
-        description: "Force update even if tag unchanged"
+        description: "Force a refresh even if the upstream tag is unchanged"
         required: false
         type: boolean
         default: false
@@ -19,14 +27,35 @@ permissions:
   contents: write
   pull-requests: write
 
+# Serialises runs so two schedules can never force-push the same branch concurrently.
+concurrency:
+  group: cli-release-auto-pr-${{ vars.CLI_RELEASE_REPO || 'github/copilot-cli' }}
+  cancel-in-progress: false
+
 jobs:
   auto-pr:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-      - name: Checkout
+      # Optional. With a GitHub App token the resulting pull request triggers `pull_request`
+      # workflows, so cli-release-validate runs on the pull request head. Without it,
+      # secrets.GITHUB_TOKEN is used and PR-head checks must be started manually.
+      - name: Generate GitHub App token
+        id: app-token
+        if: vars.CLI_RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CLI_RELEASE_APP_ID }}
+          private-key: ${{ secrets.CLI_RELEASE_APP_PRIVATE_KEY }}
+
+      # Always base the sync branch on the default branch, never on the ref a manual dispatch
+      # happened to be started from.
+      - name: Checkout default branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,15 +66,18 @@ jobs:
       - name: Detect and apply release updates
         id: apply
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CLI_RELEASE_REPO: ${{ github.event.inputs.releaseRepo || vars.CLI_RELEASE_REPO || 'github/copilot-cli' }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          CLI_RELEASE_REPO: ${{ vars.CLI_RELEASE_REPO || 'github/copilot-cli' }}
           CLI_RELEASE_FORCE: ${{ github.event.inputs.force || 'false' }}
+          CLI_RELEASE_HOLD_LABEL: ${{ vars.CLI_RELEASE_HOLD_LABEL || 'automation:hold' }}
         run: node scripts/cli-release-automation.mjs
 
       - name: Install dependencies
         if: steps.apply.outputs.has_update == 'true' && steps.apply.outputs.files_changed == 'true'
         run: npm ci
 
+      # Pre-flight only: this guards against pushing a broken branch. The authoritative
+      # required checks run on the pull request head via cli-release-validate.yml.
       - name: Lint
         if: steps.apply.outputs.has_update == 'true' && steps.apply.outputs.files_changed == 'true'
         run: npm run lint
@@ -54,42 +86,111 @@ jobs:
         if: steps.apply.outputs.has_update == 'true' && steps.apply.outputs.files_changed == 'true'
         run: npm run typecheck
 
-      - name: Create draft pull request
+      - name: Create or refresh sync pull request
         id: create-pr
         if: steps.apply.outputs.has_update == 'true' && steps.apply.outputs.files_changed == 'true'
-        uses: peter-evans/create-pull-request@v7
+        # v7.0.11 pinned to a full commit SHA: this action receives a write-capable token.
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          base: ${{ github.event.repository.default_branch }}
+          branch: ${{ steps.apply.outputs.sync_branch }}
           commit-message: "chore: sync Copilot CLI release ${{ steps.apply.outputs.release_tag }}"
-          branch: "automation/cli-release-${{ steps.apply.outputs.release_tag_slug }}"
           title: "chore: sync Copilot CLI release ${{ steps.apply.outputs.release_tag }}"
-          draft: true
+          body-path: ${{ steps.apply.outputs.pr_body_path }}
+          labels: |
+            automation
+            cli-release
+          draft: false
           delete-branch: true
-          body: |
-            ## Summary
-            - Source release repo: `${{ github.event.inputs.releaseRepo || vars.CLI_RELEASE_REPO || 'github/copilot-cli' }}`
-            - Release: `${{ steps.apply.outputs.release_name }}` (`${{ steps.apply.outputs.release_tag }}`)
-            - URL: ${{ steps.apply.outputs.release_url }}
-            - Detected models: `${{ steps.apply.outputs.models_detected || '(none)' }}`
 
-            ## Validation
-            - [x] `npm run lint`
-            - [x] `npm run typecheck`
-
-            ## Notes
-            This PR was auto-generated by `.github/workflows/cli-release-auto-pr.yml`.
-
-      - name: Request Copilot review
-        if: steps.create-pr.outputs.pull-request-number && steps.create-pr.outputs.pull-request-operation == 'created'
+      - name: Request human review
+        if: steps.create-pr.outputs.pull-request-number != ''
+        continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+          REVIEWERS: ${{ vars.CLI_RELEASE_REVIEWERS || github.repository_owner }}
+        run: gh pr edit "$PR_NUMBER" --add-reviewer "$REVIEWERS"
+
+      # Reaching this step implies the upstream tag changed, because an unchanged tag exits
+      # before the pull request step. A single sticky comment is updated in place instead of
+      # appending a new comment on every refresh.
+      - name: Request Copilot review
+        if: steps.create-pr.outputs.pull-request-number != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+          RELEASE_TAG: ${{ steps.apply.outputs.release_tag }}
+          RELEASE_URL: ${{ steps.apply.outputs.release_url }}
+          REPLAYED: ${{ steps.apply.outputs.replayed_count }}
+          MODELS_ADDED: ${{ steps.apply.outputs.models_detected }}
+          MODELS_REMOVED: ${{ steps.apply.outputs.models_removed }}
+          MODELS_REVERTED: ${{ steps.apply.outputs.models_reverted }}
+          TRUNCATED: ${{ steps.apply.outputs.replay_truncated }}
+          MARKER: "<!-- cli-release-sync-review -->"
         run: |
-          gh pr comment "${{ steps.create-pr.outputs.pull-request-number }}" \
-            --body "Hey @copilot — please review the changes in this PR.
+          set -euo pipefail
+          body=$(cat <<EOF
+          ${MARKER}
+          Hey @copilot — please review this Copilot CLI release sync.
+
+          - Release: \`${RELEASE_TAG}\` (${RELEASE_URL})
+          - Releases replayed: ${REPLAYED}
+          - Models added: ${MODELS_ADDED:-(none)}
+          - Models removed: ${MODELS_REMOVED:-(none)}
+          - Added upstream but dropped: ${MODELS_REVERTED:-(none)}
+          - Replay truncated: ${TRUNCATED:-false}
 
           Check that:
-          1. The model list updates in \`store.ts\` and \`useChat.ts\` are correct
-          2. No unintended breaking changes were introduced
-          3. The report in \`reports/\` accurately reflects the release notes
+          1. The fallback model list changes in \`store.ts\` and \`useChat.ts\` match the release notes
+          2. Any model under "Added upstream but dropped" was genuinely removed later upstream
+          3. The default model was not changed unintentionally
+          4. The generated report accurately reflects the replayed releases
 
-          If everything looks good, leave an approving review comment."
+          Note: a Copilot review is a comment, not an approval. A human approval or auto-merge
+          is still required before this can be merged.
+          EOF
+          )
+          matches=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[] | select(.body | startswith($ENV.MARKER)) | .id' || true)
+          existing=$(printf '%s\n' "$matches" | grep -m 1 -E '^[0-9]+$' || true)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" >/dev/null
+            echo "Updated sticky review comment $existing"
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body" >/dev/null
+            echo "Created sticky review comment"
+          fi
+
+      # Requires the repository setting "Allow auto-merge" plus at least one required status
+      # check, otherwise this is a no-op and the pull request waits for a human.
+      - name: Enable auto-merge
+        if: steps.create-pr.outputs.pull-request-number != '' && vars.CLI_RELEASE_AUTO_MERGE == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash
+
+      - name: Summarise pull request state
+        if: always()
+        env:
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+          PR_OPERATION: ${{ steps.create-pr.outputs.pull-request-operation }}
+          SKIP_REASON: ${{ steps.apply.outputs.skip_reason }}
+          AUTO_MERGE: ${{ vars.CLI_RELEASE_AUTO_MERGE || 'false' }}
+        run: |
+          {
+            echo "### Sync pull request"
+            echo ""
+            if [ -n "${PR_NUMBER}" ]; then
+              echo "- Pull request: #${PR_NUMBER} (${PR_OPERATION})"
+              if [ "${AUTO_MERGE}" != "true" ]; then
+                echo "- Auto-merge disabled. Set the repository variable \`CLI_RELEASE_AUTO_MERGE=true\` and enable \"Allow auto-merge\" in repository settings to merge automatically."
+              fi
+            else
+              echo "- No pull request created or updated (${SKIP_REASON:-no changes})."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

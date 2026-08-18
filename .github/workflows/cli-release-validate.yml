@@ -1,0 +1,54 @@
+name: cli-release-validate
+
+# Required check for pull requests targeting `main`, including the Copilot CLI release sync
+# pull request.
+#
+# These run on the pull request head (the merge ref), unlike the pre-flight lint/typecheck in
+# cli-release-auto-pr.yml which runs on the scheduled run's SHA and therefore never appears as
+# a check on the pull request.
+#
+# Caveat: a pull request created with secrets.GITHUB_TOKEN does not trigger `pull_request`
+# workflows. Configure the CLI_RELEASE_APP_ID / CLI_RELEASE_APP_PRIVATE_KEY GitHub App
+# credentials so the sync pull request is created with an App token and this workflow starts
+# automatically. See README for the manual fallback.
+#
+# Deliberately no `paths` filter: a workflow that is skipped by a path filter never reports a
+# status, so designating it a required check would leave every unrelated pull request stuck on
+# "Expected — Waiting for status to be reported". It therefore runs on every pull request and
+# is cheap enough (~40s) to be a required check for all of them.
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-release-validate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck

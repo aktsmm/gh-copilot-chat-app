@@ -43,11 +43,12 @@ This project includes automated workflows to keep pace with upstream Copilot CLI
 
 | Workflow                 | Trigger                | Purpose                                                                                                            |
 | ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `cli-release-auto-pr`    | cron (8 h) / manual    | Detects new `github/copilot-cli` releases, updates model lists, creates a Draft PR, and requests `@copilot` review |
+| `cli-release-auto-pr`    | cron (8 h) / manual    | Detects new `github/copilot-cli` releases and maintains a single sync pull request on one fixed branch              |
+| `cli-release-validate`   | Pull Request           | Runs lint / typecheck on every pull request targeting `main` (required check)                      |
 | `smoke-vite-server-url`  | Pull Request           | Runs lint, typecheck, unit tests, and Vite smoke test                                                              |
 | `release-desktop-assets` | GitHub Release publish | Builds Windows ZIP assets and uploads artifacts                                                                    |
 
-> The `@copilot` review step uses **GitHub Copilot Coding Agent** to automatically review Draft PRs created by the automation.
+> The sync pull request gets a single sticky `@copilot` review comment that is updated in place. A Copilot review is always a comment, never an approval, so merging still needs a human approval or auto-merge.
 
 ## Requirements
 

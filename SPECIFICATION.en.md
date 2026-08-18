@@ -29,8 +29,9 @@
 - [7. Security Model](#7-security-model)
 - [8. CI/CD Workflows](#8-cicd-workflows)
   - [8.1 cli-release-auto-pr (Auto Release Tracking)](#81-cli-release-auto-pr-auto-release-tracking)
-  - [8.2 smoke-vite-server-url (PR Validation)](#82-smoke-vite-server-url-pr-validation)
-  - [8.3 release-desktop-assets (Desktop Release)](#83-release-desktop-assets-desktop-release)
+  - [8.2 cli-release-validate (Required Check For The Sync PR)](#82-cli-release-validate-required-check-for-the-sync-pr)
+  - [8.3 smoke-vite-server-url (PR Validation)](#83-smoke-vite-server-url-pr-validation)
+  - [8.4 release-desktop-assets (Desktop Release)](#84-release-desktop-assets-desktop-release)
 
 ---
 
@@ -775,7 +776,7 @@ Requires explicit permission: `shell`, `write`, `custom-tool`
 
 ## 8. CI/CD Workflows
 
-This project automates CI/CD with three GitHub Actions workflows.
+This project automates CI/CD with four GitHub Actions workflows.
 
 ### 8.1 cli-release-auto-pr (Auto Release Tracking)
 
@@ -783,34 +784,53 @@ This project automates CI/CD with three GitHub Actions workflows.
 
 ```
 cron (every 8 hours) or manual workflow_dispatch
+  │  concurrency: serialised per monitored source repo
+  │
+  ├── Checkout the default branch (never the dispatch ref)
   │
   ├── Fetch latest release from github/copilot-cli via GitHub API
   ├── Compare with .github/automation/cli-release-state.json
-  │     └── No new release → exit
+  │     └── Tag unchanged → exit (before npm ci)
   │
-  ├── New release detected
-  │     ├── Extract model IDs from release notes via regex (gpt-*, claude-*, o*)
-  │     ├── Update DEFAULT_MODELS in client/src/lib/store.ts
-  │     ├── Update FALLBACK_MODELS in client/src/lib/useChat.ts
-  │     ├── Generate report in reports/
-  │     └── Update cli-release-state.json
+  ├── Inspect pull requests on the fixed branch automation/cli-release-sync
+  │     ├── Open PR for the same tag → exit (already-proposed)
+  │     ├── automation:hold label present → exit (on-hold)
+  │     └── Closed unmerged PR for the same tag → exit (rejected)
   │
-  ├── Run lint + typecheck validation
+  ├── Fetch every release after the last synced tag and replay them oldest-first
+  │     ├── Classify each clause as added / removed / mention-only
+  │     │     (a line mixing an addition and a deprecation no longer deletes the addition)
+  │     ├── Leave the model list untouched when the replay anchor is missing (truncated)
+  │     ├── Replace DEFAULT_MODELS in client/src/lib/store.ts
+  │     ├── Update DEFAULT_MODEL_ID in client/src/lib/useChat.ts only when needed
+  │     ├── Generate reports/<published_at>-cli-release-<tag>.md
+  │     └── Update cli-release-state.json (no run timestamps)
   │
-  ├── Create Draft PR via peter-evans/create-pull-request
+  ├── Run lint + typecheck (pre-flight)
   │
-  └── Post @copilot review request comment
-        └── GitHub Copilot Coding Agent reviews the code diff
+  ├── Create or refresh a ready PR via peter-evans/create-pull-request (SHA pinned)
+  │     └── base = default branch, branch = fixed sync branch
+  │
+  ├── Re-request reviewers and update the sticky @copilot comment
+  │
+  └── Enable auto-merge when CLI_RELEASE_AUTO_MERGE=true
 ```
 
 **Input parameters**:
 
 | Parameter | Default | Description |
 |---|---|---|
-| `releaseRepo` | `github/copilot-cli` | Repository to monitor |
-| `force` | `false` | Set `true` to force run regardless of last processed tag |
+| `force` | `false` | Set `true` to run regardless of the last tag or existing pull request state |
 
-### 8.2 smoke-vite-server-url (PR Validation)
+> The monitored repository is configured through the `CLI_RELEASE_REPO` repository variable, not a `workflow_dispatch` input. An input would let two different sources fight over the same fixed branch.
+
+### 8.2 cli-release-validate (Required Check For The Sync PR)
+
+**File**: `.github/workflows/cli-release-validate.yml`
+
+Runs `npm run lint` / `npm run typecheck` on the head of every pull request targeting `main`. The pre-flight run inside `cli-release-auto-pr` executes on the scheduled run's SHA, so it never appears as a check on the pull request and cannot be a required check. No `paths` filter is used: a workflow skipped by a path filter never reports a status, so making it a required check would leave unrelated pull requests stuck on "Expected — Waiting for status to be reported".
+
+### 8.3 smoke-vite-server-url (PR Validation)
 
 **File**: `.github/workflows/smoke-vite-server-url.yml`
 
@@ -826,7 +846,7 @@ Pull Request created / updated
 
 All steps must pass before merge (recommended to enforce via branch protection rules).
 
-### 8.3 release-desktop-assets (Desktop Release)
+### 8.4 release-desktop-assets (Desktop Release)
 
 **File**: `.github/workflows/release-desktop-assets.yml`
 
