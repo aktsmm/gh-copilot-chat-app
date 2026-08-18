@@ -621,10 +621,15 @@ async function fetchReleaseHistory(repo, token, maxCount) {
     if (payload.length < perPage) break;
   }
 
+  // Locale-independent comparison: localeCompare would depend on the runner locale and could
+  // order same-second releases differently on CI and locally, breaking byte-level determinism.
   return releases
     .sort((left, right) => {
-      const delta = right.publishedAt.localeCompare(left.publishedAt);
-      return delta !== 0 ? delta : right.tag.localeCompare(left.tag);
+      if (left.publishedAt !== right.publishedAt) {
+        return left.publishedAt < right.publishedAt ? 1 : -1;
+      }
+      if (left.tag === right.tag) return 0;
+      return left.tag < right.tag ? 1 : -1;
     })
     .slice(0, maxCount);
 }
