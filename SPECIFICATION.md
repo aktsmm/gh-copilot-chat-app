@@ -798,7 +798,9 @@ cron (8 時間毎) or 手動 workflow_dispatch
   │     └── 同一タグの未マージ Closed PR あり → 終了（rejected）
   │
   ├── 前回同期タグ以降の全リリースを取得し、古い順にリプレイ
-  │     ├── 行単位で added / removed / mention-only に分類
+  │     ├── 句単位で added / removed / mention-only に分類
+  │     │     （追加と非推奨が同一行に併記されても巻き添え削除しない）
+  │     ├── アンカー喪失（truncated）時はモデル一覧を書き換えず警告のみ
   │     ├── client/src/lib/store.ts の DEFAULT_MODELS を全置換
   │     ├── client/src/lib/useChat.ts の DEFAULT_MODEL_ID を必要時のみ更新
   │     ├── reports/<published_at>-cli-release-<tag>.md を生成
@@ -826,7 +828,7 @@ cron (8 時間毎) or 手動 workflow_dispatch
 
 **ファイル**: `.github/workflows/cli-release-validate.yml`
 
-`pull_request` トリガーで PR head 上の `npm run lint` / `npm run typecheck` を実行します。`cli-release-auto-pr` 側のプリフライトは scheduled run の SHA 上で走るため PR の check にならず、required check にはこちらを使います。
+`pull_request` トリガーで `main` 向け全 PR の head 上で `npm run lint` / `npm run typecheck` を実行します。`cli-release-auto-pr` 側のプリフライトは scheduled run の SHA 上で走るため PR の check にならず、required check にはこちらを使います。`paths` フィルタを付けないのは、`paths` で skip されたワークフローはステータスを報告せず、required check に指定すると該当しない PR が永久に "Expected — Waiting for status to be reported" のままマージ不能になるためです。
 
 ### 8.3 smoke-vite-server-url（PR 検証）
 

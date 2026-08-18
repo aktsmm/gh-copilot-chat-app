@@ -1,6 +1,7 @@
 name: cli-release-validate
 
-# Required checks for the Copilot CLI release sync pull request.
+# Required check for pull requests targeting `main`, including the Copilot CLI release sync
+# pull request.
 #
 # These run on the pull request head (the merge ref), unlike the pre-flight lint/typecheck in
 # cli-release-auto-pr.yml which runs on the scheduled run's SHA and therefore never appears as
@@ -10,19 +11,16 @@ name: cli-release-validate
 # workflows. Configure the CLI_RELEASE_APP_ID / CLI_RELEASE_APP_PRIVATE_KEY GitHub App
 # credentials so the sync pull request is created with an App token and this workflow starts
 # automatically. See README for the manual fallback.
+#
+# Deliberately no `paths` filter: a workflow that is skipped by a path filter never reports a
+# status, so designating it a required check would leave every unrelated pull request stuck on
+# "Expected — Waiting for status to be reported". It therefore runs on every pull request and
+# is cheap enough (~40s) to be a required check for all of them.
 
 on:
   pull_request:
     branches:
       - main
-    paths:
-      - ".github/automation/**"
-      - ".github/workflows/cli-release-auto-pr.yml"
-      - ".github/workflows/cli-release-validate.yml"
-      - "client/src/lib/store.ts"
-      - "client/src/lib/useChat.ts"
-      - "reports/**"
-      - "scripts/cli-release-automation.mjs"
 
 permissions:
   contents: read

@@ -127,6 +127,8 @@ jobs:
           REPLAYED: ${{ steps.apply.outputs.replayed_count }}
           MODELS_ADDED: ${{ steps.apply.outputs.models_detected }}
           MODELS_REMOVED: ${{ steps.apply.outputs.models_removed }}
+          MODELS_REVERTED: ${{ steps.apply.outputs.models_reverted }}
+          TRUNCATED: ${{ steps.apply.outputs.replay_truncated }}
           MARKER: "<!-- cli-release-sync-review -->"
         run: |
           set -euo pipefail
@@ -138,11 +140,14 @@ jobs:
           - Releases replayed: ${REPLAYED}
           - Models added: ${MODELS_ADDED:-(none)}
           - Models removed: ${MODELS_REMOVED:-(none)}
+          - Added upstream but dropped: ${MODELS_REVERTED:-(none)}
+          - Replay truncated: ${TRUNCATED:-false}
 
           Check that:
           1. The fallback model list changes in \`store.ts\` and \`useChat.ts\` match the release notes
-          2. The default model was not changed unintentionally
-          3. The generated report accurately reflects the replayed releases
+          2. Any model under "Added upstream but dropped" was genuinely removed later upstream
+          3. The default model was not changed unintentionally
+          4. The generated report accurately reflects the replayed releases
 
           Note: a Copilot review is a comment, not an approval. A human approval or auto-merge
           is still required before this can be merged.

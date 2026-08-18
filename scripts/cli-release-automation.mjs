@@ -249,7 +249,9 @@ const DISPLAY_NAME_RULES = [
     build: (match) => `grok-${match[1]}`,
   },
   {
-    pattern: /\bgpt-?\s?(\d+(?:\.\d+)?)[\s-](codex|mini|sol|terra|luna)\b/gi,
+    // Display names only: the space before the suffix keeps this from matching an already
+    // hyphenated id such as "gpt-5.1-codex-mini", which would otherwise be truncated.
+    pattern: /\bgpt[-\s](\d+(?:\.\d+)?)\s+(codex|mini|sol|terra|luna)\b/gi,
     build: (match) => `gpt-${match[1]}-${match[2].toLowerCase()}`,
   },
 ];
@@ -265,9 +267,15 @@ const REMOVE_SIGNALS = [
   /\bEOL\b/,
 ];
 
+/**
+ * Strong add signals name an explicit addition.
+ *
+ * `support for` alone is deliberately kept out of this list because it also occurs inside
+ * removals ("Remove support for X"); it lives in WEAK_ADD_SIGNALS and only applies when no
+ * removal signal is present.
+ */
 const ADD_SIGNALS = [
   /\badd(?:s|ed|ing)?\s+support\s+for\b/i,
-  /\bsupport\s+for\b/i,
   /\bnew\s+model\b/i,
   /\badd(?:s|ed|ing)?\s+(?:the\s+)?[^.]*\bmodels?\b/i,
   /\bnow\s+available\b/i,
@@ -276,26 +284,100 @@ const ADD_SIGNALS = [
   /\bgenerally\s+available\b/i,
 ];
 
+const WEAK_ADD_SIGNALS = [/\bsupport\s+for\b/i, /\bavailable\b/i];
+
+/**
+ * Qualifiers that denote a distinct variant of a model rather than the base model.
+ *
+ * "Claude Opus 4.6 Fast" is not "claude-opus-4.6", so normalising it to the base id would let a
+ * note about the Fast variant mutate the base model. Such mentions are reported but never
+ * applied.
+ */
+const VARIANT_QUALIFIER_PATTERN =
+  /^[\s-]+(fast|thinking|reasoning|preview|beta|experimental|nano|turbo|lite|instant)\b/i;
+
 function matchesAny(line, patterns) {
   return patterns.some((pattern) => pattern.test(line));
 }
 
+/**
+ * Extracts model tokens from a single line.
+ *
+ * Display-name rules run first and reserve their matched span, so a hyphenated pattern can no
+ * longer also emit a truncated id from inside that span ("GPT-5.3 Codex" used to yield both
+ * `gpt-5.3-codex` and the non-existent `gpt-5.3`).
+ *
+ * Returns `{ applicable, ambiguous }`: `ambiguous` holds variant mentions that must never be
+ * applied automatically.
+ */
 function extractModelTokens(line) {
-  const tokens = [];
-
-  for (const pattern of MODEL_ID_PATTERNS) {
-    for (const match of line.matchAll(pattern)) {
-      tokens.push(match[0]);
-    }
-  }
+  const applicable = [];
+  const ambiguous = [];
+  const reservedSpans = [];
 
   for (const rule of DISPLAY_NAME_RULES) {
     for (const match of line.matchAll(rule.pattern)) {
-      tokens.push(rule.build(match));
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+      reservedSpans.push([start, end]);
+
+      const token = rule.build(match);
+      if (VARIANT_QUALIFIER_PATTERN.test(line.slice(end))) {
+        ambiguous.push(token);
+      } else {
+        applicable.push(token);
+      }
     }
   }
 
-  return uniqueLower(tokens);
+  const overlapsReserved = (start, end) =>
+    reservedSpans.some(([from, to]) => start < to && end > from);
+
+  for (const pattern of MODEL_ID_PATTERNS) {
+    for (const match of line.matchAll(pattern)) {
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+      if (overlapsReserved(start, end)) continue;
+
+      if (VARIANT_QUALIFIER_PATTERN.test(line.slice(end))) {
+        ambiguous.push(match[0]);
+      } else {
+        applicable.push(match[0]);
+      }
+    }
+  }
+
+  const applicableUnique = uniqueLower(applicable);
+  return {
+    applicable: applicableUnique,
+    ambiguous: uniqueLower(ambiguous).filter(
+      (token) => !applicableUnique.includes(token),
+    ),
+  };
+}
+
+/**
+ * Splits a bullet into sentences, then each sentence into enumeration clauses.
+ *
+ * Two tiers are needed because signal inheritance must behave differently:
+ *  - Within a sentence, "Add support for A, B and C" should let B and C inherit the addition.
+ *  - Across sentences, "Deprecated Claude Sonnet 4.5; use Claude Sonnet 4.6 instead" must not
+ *    let the second half inherit the removal.
+ */
+function splitIntoSentences(line) {
+  return line
+    .split(
+      /(?:;|\s+—\s+|\s+--\s+|\.\s+|\s+but\s+|\s+while\s+|\s+then\s+|\s+however\s+)/i,
+    )
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+function splitIntoClauses(sentence) {
+  return sentence
+    .split(/(?:,\s+|\s+and\s+)/i)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -331,9 +413,20 @@ function parseSectionKind(rawLine) {
 /**
  * Classifies model mentions into add / remove / mention-only.
  *
- * Removal signals win over add signals on the same line, so "removed support for X" can never
- * add X. Lines without an explicit signal and without an Added/Removed section are recorded as
- * mentions only and never mutate the model list.
+ * Classification happens per clause, not per line, because a single bullet can both add and
+ * remove models ("Add support for Claude Opus 4.8 Fast and deprecate Claude Opus 4.6 Fast").
+ * Classifying such a line as a whole would delete the model the release just added.
+ *
+ * Rules, in order:
+ *  - A clause carrying both a removal signal and a strong addition signal is too ambiguous to
+ *    apply, so its tokens become mentions only.
+ *  - A removal signal wins over the weak `support for` signal, so "Remove support for X"
+ *    removes X instead of being treated as contradictory.
+ *  - A clause with no signal of its own inherits the last explicit signal from the same
+ *    sentence, which keeps enumerations like "Add support for A, B and C" working. Inheritance
+ *    never crosses a sentence boundary.
+ *  - Otherwise the surrounding Added/Removed section decides; failing that the tokens are
+ *    mentions only and never mutate the model list.
  */
 function extractModelChanges(text) {
   const added = [];
@@ -348,23 +441,41 @@ function extractModelChanges(text) {
       continue;
     }
 
-    const tokens = extractModelTokens(rawLine);
-    if (tokens.length === 0) continue;
+    for (const sentence of splitIntoSentences(rawLine)) {
+      let inheritedSignal;
 
-    let bucket;
-    if (matchesAny(rawLine, REMOVE_SIGNALS)) {
-      bucket = removed;
-    } else if (matchesAny(rawLine, ADD_SIGNALS)) {
-      bucket = added;
-    } else if (section === "remove") {
-      bucket = removed;
-    } else if (section === "add") {
-      bucket = added;
-    } else {
-      bucket = mentioned;
+      for (const clause of splitIntoClauses(sentence)) {
+        const hasRemoveSignal = matchesAny(clause, REMOVE_SIGNALS);
+        const hasStrongAddSignal = matchesAny(clause, ADD_SIGNALS);
+        const hasWeakAddSignal = matchesAny(clause, WEAK_ADD_SIGNALS);
+
+        let clauseSignal;
+        if (hasRemoveSignal && hasStrongAddSignal) {
+          clauseSignal = "ambiguous";
+        } else if (hasRemoveSignal) {
+          clauseSignal = "remove";
+        } else if (hasStrongAddSignal || hasWeakAddSignal) {
+          clauseSignal = "add";
+        }
+
+        if (clauseSignal && clauseSignal !== "ambiguous") {
+          inheritedSignal = clauseSignal;
+        }
+
+        const { applicable, ambiguous } = extractModelTokens(clause);
+        mentioned.push(...ambiguous);
+        if (applicable.length === 0) continue;
+
+        const effective = clauseSignal ?? inheritedSignal ?? section;
+        if (effective === "remove") {
+          removed.push(...applicable);
+        } else if (effective === "add") {
+          added.push(...applicable);
+        } else {
+          mentioned.push(...applicable);
+        }
+      }
     }
-
-    bucket.push(...tokens);
   }
 
   const addedUnique = uniqueLower(added);
@@ -490,18 +601,27 @@ function getRateLimitRetryDelay(response, detail, attempt) {
   return Math.max(1000, Math.min(resetDelayMs, 10000));
 }
 
+/**
+ * Performs a request with retries and returns a normalized result.
+ *
+ * A `Response` body is a one-shot stream, so the retry decision and the caller cannot both
+ * call `response.text()`. The body is therefore buffered exactly once here and handed to the
+ * caller as `body`; returning the raw `Response` would make every caller's error-detail read
+ * throw `TypeError: Body is unusable`.
+ */
 async function fetchWithRetry(url, options, maxAttempts = 3) {
   let lastError;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const response = await fetch(url, options);
+      const body = await response.text();
+
       if (!response.ok && attempt < maxAttempts) {
-        const detail = await response.text();
         const retryDelayMs = isRetryableStatus(response.status)
           ? 1000 * attempt
           : response.status === 403
-            ? getRateLimitRetryDelay(response, detail, attempt)
+            ? getRateLimitRetryDelay(response, body, attempt)
             : undefined;
 
         if (retryDelayMs !== undefined) {
@@ -511,13 +631,19 @@ async function fetchWithRetry(url, options, maxAttempts = 3) {
               : `status ${response.status}`;
           const resetAt = response.headers.get("x-ratelimit-reset");
           console.warn(
-            `Fetch attempt ${attempt}/${maxAttempts} hit ${retryReason}; retrying in ${retryDelayMs}ms. ${detail.slice(0, 200)}${resetAt ? ` (reset=${resetAt})` : ""}`,
+            `Fetch attempt ${attempt}/${maxAttempts} hit ${retryReason}; retrying in ${retryDelayMs}ms. ${body.slice(0, 200)}${resetAt ? ` (reset=${resetAt})` : ""}`,
           );
           await sleep(retryDelayMs);
           continue;
         }
       }
-      return response;
+
+      return {
+        ok: response.ok,
+        status: response.status,
+        headers: response.headers,
+        body,
+      };
     } catch (error) {
       lastError = error;
       if (attempt >= maxAttempts) {
@@ -532,6 +658,16 @@ async function fetchWithRetry(url, options, maxAttempts = 3) {
   }
 
   throw lastError;
+}
+
+function parseJsonBody(result, apiUrl) {
+  try {
+    return JSON.parse(result.body);
+  } catch (error) {
+    throw new Error(
+      `Failed to parse JSON response from ${apiUrl}: ${formatErrorMessage(error)}`,
+    );
+  }
 }
 
 function buildHeaders(token) {
@@ -568,17 +704,14 @@ function normalizeRelease(repo, payload) {
 
 async function fetchLatestRelease(repo, token) {
   const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
-  const response = await fetchWithRetry(apiUrl, {
-    headers: buildHeaders(token),
-  });
-  if (!response.ok) {
-    const detail = await response.text();
+  const result = await fetchWithRetry(apiUrl, { headers: buildHeaders(token) });
+  if (!result.ok) {
     throw new Error(
-      `Failed to fetch latest release (${response.status}) from ${apiUrl}: ${detail.slice(0, 300)}`,
+      `Failed to fetch latest release (${result.status}) from ${apiUrl}: ${result.body.slice(0, 300)}`,
     );
   }
 
-  const release = normalizeRelease(repo, await response.json());
+  const release = normalizeRelease(repo, parseJsonBody(result, apiUrl));
   if (!release.tag) {
     throw new Error(`Latest release tag is empty for repo ${repo}`);
   }
@@ -599,17 +732,16 @@ async function fetchReleaseHistory(repo, token, maxCount) {
 
   for (let page = 1; page <= maxPages; page += 1) {
     const apiUrl = `https://api.github.com/repos/${repo}/releases?per_page=${perPage}&page=${page}`;
-    const response = await fetchWithRetry(apiUrl, {
+    const result = await fetchWithRetry(apiUrl, {
       headers: buildHeaders(token),
     });
-    if (!response.ok) {
-      const detail = await response.text();
+    if (!result.ok) {
       throw new Error(
-        `Failed to fetch release history (${response.status}) from ${apiUrl}: ${detail.slice(0, 300)}`,
+        `Failed to fetch release history (${result.status}) from ${apiUrl}: ${result.body.slice(0, 300)}`,
       );
     }
 
-    const payload = await response.json();
+    const payload = parseJsonBody(result, apiUrl);
     if (!Array.isArray(payload) || payload.length === 0) break;
 
     for (const item of payload) {
@@ -647,6 +779,11 @@ function readSyncTagFromPullRequest(pullRequest) {
 /**
  * With a fixed sync branch, an already-open (or explicitly rejected) pull request for the same
  * tag must short-circuit the run before npm ci / lint / typecheck, and before any file write.
+ *
+ * Fail-closed on API errors: refreshing the branch when the pull request state is unknown could
+ * force-push over a pull request that carries the hold label. A missed run only delays the sync
+ * until the next schedule, so skipping is the cheaper failure mode. The "check not attempted"
+ * cases (local runs without a token, or an explicit opt-out) stay fail-open on purpose.
  */
 async function inspectSyncPullRequest({ repo, branch, token, latestTag }) {
   if (!repo || !token || skipPullRequestCheck) {
@@ -656,21 +793,28 @@ async function inspectSyncPullRequest({ repo, branch, token, latestTag }) {
   const [owner] = repo.split("/");
   const head = encodeURIComponent(`${owner}:${branch}`);
   const apiUrl = `https://api.github.com/repos/${repo}/pulls?head=${head}&state=all&per_page=30&sort=created&direction=desc`;
-  const response = await fetchWithRetry(apiUrl, {
-    headers: buildHeaders(token),
-  });
+  const result = await fetchWithRetry(apiUrl, { headers: buildHeaders(token) });
 
-  if (!response.ok) {
-    const detail = await response.text();
+  if (!result.ok) {
     console.warn(
-      `Could not inspect existing sync pull requests (${response.status}): ${detail.slice(0, 200)}`,
+      `Could not inspect existing sync pull requests (${result.status}): ${result.body.slice(0, 200)}`,
     );
-    return { skip: false, reason: "pr-check-failed" };
+    return { skip: true, reason: `pr-check-failed (${result.status})` };
   }
 
-  const pullRequests = await response.json();
+  let pullRequests;
+  try {
+    pullRequests = JSON.parse(result.body);
+  } catch (error) {
+    console.warn(
+      `Could not parse the sync pull request list: ${formatErrorMessage(error)}`,
+    );
+    return { skip: true, reason: "pr-check-unparseable" };
+  }
+
   if (!Array.isArray(pullRequests)) {
-    return { skip: false, reason: "pr-check-failed" };
+    console.warn("Unexpected sync pull request list payload; skipping.");
+    return { skip: true, reason: "pr-check-unexpected-payload" };
   }
 
   const openPullRequest = pullRequests.find(
@@ -793,10 +937,20 @@ function buildReportContent(context) {
     ...bulletList(context.models),
     "",
     "## Model Changes Applied",
+    ...(truncated
+      ? [
+          "> **Model list left untouched.** The previously synced tag was outside the fetched",
+          "> release window, so replaying would have started from an arbitrary point. Review the",
+          "> upstream release notes manually before merging.",
+          "",
+        ]
+      : []),
     "### Added",
     ...bulletList(aggregate.added),
     "### Removed",
     ...bulletList(aggregate.removed),
+    "### Added upstream but not in the final list (needs review)",
+    ...bulletList(aggregate.reverted),
     "### Mentioned only (not applied)",
     ...bulletList(aggregate.mentioned),
     "",
@@ -841,9 +995,26 @@ function buildPullRequestBody(context) {
     `- Releases replayed: ${timeline.length}${truncated ? " (truncated, see report)" : ""}`,
     "",
     "## Model List",
+    ...(truncated
+      ? [
+          "> ⚠️ **The model list was left untouched.** The previously synced tag was outside the",
+          "> fetched release window, so the replay could not be anchored. Review the upstream",
+          "> release notes manually before merging.",
+          "",
+        ]
+      : []),
     `- Default model: \`${context.defaultModel ?? "(none)"}\``,
     `- Added: ${inlineList(aggregate.added)}`,
     `- Removed: ${inlineList(aggregate.removed)}`,
+    "",
+    "### Needs review",
+    ...(aggregate.reverted.length > 0
+      ? [
+          `- ⚠️ Added upstream but **not** in the final list: ${inlineList(aggregate.reverted)}`,
+          "  A later release removed them again, or the note was too ambiguous to apply. Check",
+          "  the report's per-release table before merging.",
+        ]
+      : ["- No upstream addition was dropped during the replay."]),
     `- Mentioned only (not applied): ${inlineList(aggregate.mentioned)}`,
     "",
     "## Changed Files",
@@ -975,7 +1146,7 @@ async function main() {
 
   let workingModels = baseModels;
   const timeline = [];
-  const aggregate = { added: [], removed: [], mentioned: [] };
+  const aggregate = { added: [], removed: [], mentioned: [], reverted: [] };
 
   for (const entry of replayWindow) {
     const changes = extractModelChanges(`${entry.name}\n${entry.body}`);
@@ -986,15 +1157,34 @@ async function main() {
     aggregate.mentioned.push(...changes.mentioned);
   }
 
-  // Report the net effect, not every intermediate flip-flop.
-  aggregate.added = uniqueLower(aggregate.added).filter(
+  // A truncated window means the previously synced tag fell out of the fetched history, so the
+  // replay would start from an arbitrary point and could apply removal signals that were
+  // already accounted for. Keep the model list untouched rather than corrupting it; the report
+  // and the pull request body both call this out so a human can decide.
+  if (truncated) {
+    console.warn(
+      `Previously synced tag ${previousTag} is outside the fetched release window; leaving the model list untouched.`,
+    );
+    workingModels = baseModels;
+  }
+
+  const allAdded = uniqueLower(aggregate.added);
+  const allRemoved = uniqueLower(aggregate.removed);
+
+  // Report the net effect, and separately surface every intermediate change that the net
+  // effect hides, so a reviewer can see that a release-note addition did not survive.
+  aggregate.added = allAdded.filter(
     (model) => workingModels.includes(model) && !baseModels.includes(model),
   );
-  aggregate.removed = uniqueLower(aggregate.removed).filter(
+  aggregate.removed = allRemoved.filter(
     (model) => baseModels.includes(model) && !workingModels.includes(model),
   );
-  aggregate.mentioned = uniqueLower(aggregate.mentioned).filter(
+  aggregate.reverted = allAdded.filter(
     (model) => !workingModels.includes(model),
+  );
+  aggregate.mentioned = uniqueLower(aggregate.mentioned).filter(
+    (model) =>
+      !workingModels.includes(model) && !aggregate.reverted.includes(model),
   );
 
   const { models: resolvedModels, defaultModel } = resolveModelList(
@@ -1071,6 +1261,8 @@ async function main() {
   writeOutput("changed_files", changedFiles.join(","));
   writeOutput("models_detected", aggregate.added.join(","));
   writeOutput("models_removed", aggregate.removed.join(","));
+  writeOutput("models_reverted", aggregate.reverted.join(","));
+  writeOutput("replay_truncated", truncated ? "true" : "false");
   writeOutput("replayed_count", String(timeline.length));
   writeOutput("report_path", reportRelativePath);
   writeOutput("pr_body_path", prBodyPath);
@@ -1078,6 +1270,9 @@ async function main() {
   console.log(`Synced release: ${release.tag} (replayed ${timeline.length})`);
   console.log(`Models added: ${aggregate.added.join(", ") || "(none)"}`);
   console.log(`Models removed: ${aggregate.removed.join(", ") || "(none)"}`);
+  console.log(
+    `Added upstream but dropped: ${aggregate.reverted.join(", ") || "(none)"}`,
+  );
   console.log(`Changed files: ${changedFiles.join(", ") || "(none)"}`);
 
   writeStepSummary([
@@ -1085,10 +1280,11 @@ async function main() {
     "",
     `- Latest release: ${release.tag} (${release.url})`,
     `- Previously synced tag: ${previousTag ?? "(none)"}`,
-    `- Releases replayed: ${timeline.length}${truncated ? " (truncated)" : ""}`,
+    `- Releases replayed: ${timeline.length}${truncated ? " (truncated — model list left untouched)" : ""}`,
     `- Sync branch: \`${syncBranch}\``,
     `- Models added: ${aggregate.added.join(", ") || "(none)"}`,
     `- Models removed: ${aggregate.removed.join(", ") || "(none)"}`,
+    `- Added upstream but dropped: ${aggregate.reverted.join(", ") || "(none)"}`,
     `- Files changed: ${changedFiles.join(", ") || "(none)"}`,
   ]);
 }

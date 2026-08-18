@@ -798,7 +798,9 @@ cron (every 8 hours) or manual workflow_dispatch
   │     └── Closed unmerged PR for the same tag → exit (rejected)
   │
   ├── Fetch every release after the last synced tag and replay them oldest-first
-  │     ├── Classify each line as added / removed / mention-only
+  │     ├── Classify each clause as added / removed / mention-only
+  │     │     (a line mixing an addition and a deprecation no longer deletes the addition)
+  │     ├── Leave the model list untouched when the replay anchor is missing (truncated)
   │     ├── Replace DEFAULT_MODELS in client/src/lib/store.ts
   │     ├── Update DEFAULT_MODEL_ID in client/src/lib/useChat.ts only when needed
   │     ├── Generate reports/<published_at>-cli-release-<tag>.md
@@ -826,7 +828,7 @@ cron (every 8 hours) or manual workflow_dispatch
 
 **File**: `.github/workflows/cli-release-validate.yml`
 
-Runs `npm run lint` / `npm run typecheck` on the pull request head via the `pull_request` trigger. The pre-flight run inside `cli-release-auto-pr` executes on the scheduled run's SHA, so it never appears as a check on the pull request and cannot be a required check.
+Runs `npm run lint` / `npm run typecheck` on the head of every pull request targeting `main`. The pre-flight run inside `cli-release-auto-pr` executes on the scheduled run's SHA, so it never appears as a check on the pull request and cannot be a required check. No `paths` filter is used: a workflow skipped by a path filter never reports a status, so making it a required check would leave unrelated pull requests stuck on "Expected — Waiting for status to be reported".
 
 ### 8.3 smoke-vite-server-url (PR Validation)
 

@@ -59,7 +59,7 @@
 | ワークフロー             | トリガー            | 目的                                                                                                  |
 | ------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------- |
 | `cli-release-auto-pr`    | cron (8時間) / 手動 | `github/copilot-cli` の新リリースを検出し、固定ブランチ 1 本の同期 PR を作成・更新                     |
-| `cli-release-validate`   | Pull Request        | 同期 PR の head 上で lint / typecheck を実行（required check 用）                                      |
+| `cli-release-validate`   | Pull Request        | `main` 向け全 PR で lint / typecheck を実行（required check 用）                                       |
 | `smoke-vite-server-url`  | Pull Request        | lint, typecheck, ユニットテスト, Vite スモークテストを実行                                            |
 | `release-desktop-assets` | GitHub Release 公開 | Windows ZIP をビルドしアーティファクトをアップロード                                                  |
 
@@ -395,7 +395,10 @@ CLI の新しい Release を検出し、既定モデル候補の更新とリリ�
 - **PR は常に 1 本**: ブランチ名にリリースタグを含めないため、リリースごとに PR が増えません。
 - **中間リリースを落とさない**: 未マージのまま新リリースが出た場合、base から作り直したうえで前回同期タグ以降の全リリースを古い順にリプレイします。
 - **生成物は決定的**: 実行時刻・実行 ID を一切書き込まないため、同じ base と同じ上流リリース群なら何度実行してもバイト単位で同一の出力になります。タグが変わらない限り force-push は発生しません。
-- **モデル一覧は加算専用ではない**: リリースノートを行単位で分類し、`Removed` / `deprecated` 等の記述はモデルを削除します。明示的な追加シグナルが無い単なる言及はレポートに載るだけで適用されません。
+- **モデル一覧は加算専用ではない**: リリースノートを**句単位**で分類し、`Removed` / `deprecated` 等の記述はモデルを削除します。1 行に追加と非推奨が併記される場合（例: `Add support for Claude Opus 4.8 Fast and deprecate Claude Opus 4.6 Fast`）も、句に分割してから判定するため追加分を巻き添えで削除しません。明示的な追加シグナルが無い単なる言及はレポートに載るだけで適用されません。
+- **バリアント名は適用しない**: `Claude Opus 4.6 Fast` のような修飾語付きの表示名は基底モデル ID に潰さず、「要人手確認」として扱います。
+- **リプレイの取りこぼしを可視化**: 上流で追加されたが最終一覧に残らなかったモデルは、PR 本文の「Needs review」に必ず列挙されます。
+- **アンカー喪失時は書き換えない**: 前回同期タグが取得ウィンドウ外だった場合、モデル一覧は変更せず警告のみ出します。
 - **既定モデルは固定**: `useChat.ts` の `DEFAULT_MODEL_ID` が正であり、リリースノートで最初に登場したモデルに勝手に差し替わりません。
 
 ### 実行トリガー
@@ -418,7 +421,8 @@ CLI の新しい Release を検出し、既定モデル候補の更新とリリ�
 
 1. **Allow auto-merge** を有効化（`CLI_RELEASE_AUTO_MERGE=true` で使う場合のみ）。
 2. **Automatically delete head branches** を有効化すると、マージ後に同期ブランチが確実に削除されます。
-3. GitHub App 未設定の場合、`GITHUB_TOKEN` で作成された PR では `pull_request` ワークフローが起動しません。`cli-release-validate` を手動で起動するか、PR を一度 close → reopen してください。
+3. **required check** には `cli-release-validate` を指定します。このワークフローは `paths` フィルタを持たず `main` 向けの全 PR で起動するため、required check にしても無関係な PR が "Expected — Waiting for status to be reported" で止まりません（`paths` 付きワークフローを required check にすると該当しない PR が永久にマージ不能になります）。
+4. GitHub App 未設定の場合、`GITHUB_TOKEN` で作成された PR では `pull_request` ワークフローが起動しません。`cli-release-validate` を手動で起動するか、PR を一度 close → reopen してください。
 
 ### 運用（拒否・保留）
 
