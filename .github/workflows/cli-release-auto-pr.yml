@@ -38,9 +38,10 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      # Optional. With a GitHub App token the resulting pull request triggers `pull_request`
-      # workflows, so cli-release-validate runs on the pull request head. Without it,
-      # secrets.GITHUB_TOKEN is used and PR-head checks must be started manually.
+      # Optional but required for unattended operation. A pull request created with
+      # secrets.GITHUB_TOKEN has its `pull_request` workflow runs held in `action_required`
+      # until a human approves them, which also keeps auto-merge from completing. An App token
+      # avoids that gate.
       - name: Generate GitHub App token
         id: app-token
         if: vars.CLI_RELEASE_APP_ID != ''

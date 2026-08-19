@@ -414,7 +414,7 @@ CLI の新しい Release を検出し、既定モデル候補の更新とリリ�
 | `CLI_RELEASE_REVIEWERS` | Variable | リポジトリオーナー | 同期 PR のレビュー依頼先（カンマ区切り） |
 | `CLI_RELEASE_AUTO_MERGE` | Variable | 未設定（無効） | `true` で required check 成功後の auto-merge を有効化 |
 | `CLI_RELEASE_HOLD_LABEL` | Variable | `automation:hold` | このラベルが付いている間、同期 PR を更新しません |
-| `CLI_RELEASE_APP_ID` | Variable | 未設定 | GitHub App の App ID。設定すると PR head 上で `pull_request` ワークフローが自動起動します |
+| `CLI_RELEASE_APP_ID` | Variable | 未設定 | GitHub App の App ID。設定すると PR head 上で `pull_request` ワークフローが承認なしで起動します（無人運用の必須条件） |
 | `CLI_RELEASE_APP_PRIVATE_KEY` | Secret | 未設定 | 同 App の秘密鍵 |
 
 ### 必要なリポジトリ設定（手動）
@@ -422,7 +422,11 @@ CLI の新しい Release を検出し、既定モデル候補の更新とリリ�
 1. **Allow auto-merge** を有効化（`CLI_RELEASE_AUTO_MERGE=true` で使う場合のみ）。
 2. **Automatically delete head branches** を有効化すると、マージ後に同期ブランチが確実に削除されます。
 3. **required check** には `cli-release-validate` を指定します。このワークフローは `paths` フィルタを持たず `main` 向けの全 PR で起動するため、required check にしても無関係な PR が "Expected — Waiting for status to be reported" で止まりません（`paths` 付きワークフローを required check にすると該当しない PR が永久にマージ不能になります）。
-4. GitHub App 未設定の場合、`GITHUB_TOKEN` で作成された PR では `pull_request` ワークフローが起動しません。`cli-release-validate` を手動で起動するか、PR を一度 close → reopen してください。
+4. GitHub App 未設定の場合、`GITHUB_TOKEN` で作成された PR のワークフローは**起動はするが「承認待ち」(`action_required`) で停止**します（bot 作成 PR に対する GitHub のセキュリティ仕様。`permissions` を read-only にしても回避できません）。実測でも `cli-release-validate` は PR 作成の 11 分後、手動承認によって初めて開始しました。この状態では PR が `UNSTABLE` のままとなり auto-merge も完了しません。次のいずれかで対応します。
+   - Actions タブの該当 run で **Approve and run** を押す（`gh api -X POST repos/{owner}/{repo}/actions/runs/{run_id}/approve` でも可）
+   - `CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY` を設定して GitHub App トークンで PR を作らせる（**無人運用したい場合はこれが必須**）
+
+> 参考: [Bot-created pull requests can run workflows if approved](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) / [Triggering a workflow](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)
 
 ### 運用（拒否・保留）
 
