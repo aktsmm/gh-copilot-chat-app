@@ -428,7 +428,9 @@ CLI の新しい Release を検出し、既定モデル候補の更新とリリ�
    npm run setup:release-app
    ```
 
-   ブラウザが開くので、**GitHub にサインイン（sudo mode の再認証を求められます）して「Create GitHub App」を1回押すだけ**です。App ID と秘密鍵はスクリプトが API で受け取り、Repository Variable / Secret へ自動登録します。秘密鍵はディスクに保存されず、コミットもされません。最後に App のインストール画面が開くので、このリポジトリを選んでください。
+   ブラウザが開くので、**GitHub にサインイン（sudo mode の再認証を求められます）して「Create GitHub App」を1回押すだけ**です。App ID と秘密鍵はスクリプトが API で受け取り、Repository Variable / Secret へ自動登録します。最後に App のインストール画面が開くので、このリポジトリを選んでください。
+
+   秘密鍵の扱い: ファイルには書き出さず、`gh` へ**標準入力**で渡します（コマンドライン引数はほかのプロセスから読める上、プロセス生成監査ログに丸ごと残るため）。失敗時のエラー出力にも鍵は含めません。ただし JavaScript の文字列は書き換えできないため、プロセス終了までヒープ上には残ります。
 
    権限は `contents: write` / `pull_requests: write` / `issues: write` / `metadata: read` のみ（ワークフローが実際に使う範囲）で、webhook は無効です。
 
