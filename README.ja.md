@@ -414,17 +414,25 @@ CLI の新しい Release を検出し、既定モデル候補の更新とリリ�
 | `CLI_RELEASE_REVIEWERS` | Variable | リポジトリオーナー | 同期 PR のレビュー依頼先（カンマ区切り）。**設定済み: `aktsmm`** |
 | `CLI_RELEASE_AUTO_MERGE` | Variable | 未設定（無効） | `true` で required check 成功後の auto-merge を有効化。**設定済み: `true`** |
 | `CLI_RELEASE_HOLD_LABEL` | Variable | `automation:hold` | このラベルが付いている間、同期 PR を更新しません |
-| `CLI_RELEASE_APP_ID` | Variable | 未設定 | GitHub App の App ID。設定すると PR head 上で `pull_request` ワークフローが承認なしで起動します（無人運用の必須条件） |
-| `CLI_RELEASE_APP_PRIVATE_KEY` | Secret | 未設定 | 同 App の秘密鍵 |
+| `CLI_RELEASE_APP_ID` | Variable | 未設定 | GitHub App の App ID。設定すると PR head 上で `pull_request` ワークフローが承認なしで起動します（無人運用の必須条件）。`npm run setup:release-app` で自動登録できます |
+| `CLI_RELEASE_APP_PRIVATE_KEY` | Secret | 未設定 | 同 App の秘密鍵。同じく `npm run setup:release-app` が登録します |
 
 ### リポジトリ設定
 
 1. ✅ **Allow auto-merge** — 設定済み（`CLI_RELEASE_AUTO_MERGE=true` と併用）
 2. ✅ **Automatically delete head branches** — 設定済み。マージ後に同期ブランチが自動削除されます
 3. ✅ **required check** — ruleset `main-required-checks` で `validate`（`cli-release-validate` のジョブ）を必須化済み。このワークフローは `paths` フィルタを持たず `main` 向けの全 PR で起動するため、required check にしても無関係な PR が "Expected — Waiting for status to be reported" で止まりません（`paths` 付きワークフローを required check にすると該当しない PR が永久にマージ不能になります）
-4. ⬜ **GitHub App**（`CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY`）— **未設定**。未設定だと `GITHUB_TOKEN` で作成された PR のワークフローは**起動はするが「承認待ち」(`action_required`) で停止**します（bot 作成 PR に対する GitHub のセキュリティ仕様。`permissions` を read-only にしても回避できません）。実測でも `cli-release-validate` は PR 作成の 11 分後、手動承認によって初めて開始しました。この状態では required check が報告されないため PR は `BLOCKED` のままで、auto-merge も完了しません。次のいずれかで対応します。
-   - Actions タブの該当 run で **Approve and run** を押す（`gh api -X POST repos/{owner}/{repo}/actions/runs/{run_id}/approve` でも可）
-   - App を設定して GitHub App トークンで PR を作らせる（**完全な無人運用にはこれが必須**）
+4. ⬜ **GitHub App**（`CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY`）— **未設定**。これが唯一「完全無人化」に必要な設定です。
+
+   ```bash
+   npm run setup:release-app
+   ```
+
+   ブラウザが開くので、**GitHub にサインイン（sudo mode の再認証を求められます）して「Create GitHub App」を1回押すだけ**です。App ID と秘密鍵はスクリプトが API で受け取り、Repository Variable / Secret へ自動登録します。秘密鍵はディスクに保存されず、コミットもされません。最後に App のインストール画面が開くので、このリポジトリを選んでください。
+
+   権限は `contents: write` / `pull_requests: write` / `issues: write` / `metadata: read` のみ（ワークフローが実際に使う範囲）で、webhook は無効です。
+
+   未設定のままでも動作しますが、`GITHUB_TOKEN` で作成された PR のワークフローは**起動はするが「承認待ち」(`action_required`) で停止**します（bot 作成 PR に対する GitHub のセキュリティ仕様。`permissions` を read-only にしても回避できません）。実測でも `cli-release-validate` は PR 作成の 11 分後、手動承認によって初めて開始しました。この状態では required check が報告されないため PR は `BLOCKED` のままで、auto-merge も完了しません。都度対応する場合は Actions タブの該当 run で **Approve and run** を押します（`gh api -X POST repos/{owner}/{repo}/actions/runs/{run_id}/approve` でも可）。
 
 > 参考: [Bot-created pull requests can run workflows if approved](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) / [Triggering a workflow](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)
 
@@ -441,7 +449,7 @@ App 未設定の現状では、同期 PR は次の流れになります。
                       └─ head ブランチ自動削除 → 次回以降は tag-unchanged で沈黙
 ```
 
-App を設定すると、承認ステップが不要になり完全自動になります。
+`npm run setup:release-app` で App を設定すると、`validate` が承認なしで走るため上記の手動ステップが消え、完全自動になります。
 
 ### 運用（拒否・保留）
 

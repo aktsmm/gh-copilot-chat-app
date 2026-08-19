@@ -830,7 +830,7 @@ cron (every 8 hours) or manual workflow_dispatch
 
 Runs `npm run lint` / `npm run typecheck` on the head of every pull request targeting `main`. The pre-flight run inside `cli-release-auto-pr` executes on the scheduled run's SHA, so it never appears as a check on the pull request and cannot be a required check. No `paths` filter is used: a workflow skipped by a path filter never reports a status, so making it a required check would leave unrelated pull requests stuck on "Expected — Waiting for status to be reported".
 
-> Runs on a pull request authored by `github-actions[bot]` are held in `action_required` until someone with write access approves them. Configure the `CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY` GitHub App credentials to remove that gate; otherwise approve each run from the Actions tab.
+> Runs on a pull request authored by `github-actions[bot]` are held in `action_required` until someone with write access approves them. Run `npm run setup:release-app` (`scripts/setup-release-app.mjs`) to create the GitHub App through the app manifest flow and register `CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY` automatically; otherwise approve each run from the Actions tab.
 
 ### 8.3 smoke-vite-server-url (PR Validation)
 

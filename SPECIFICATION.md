@@ -830,7 +830,7 @@ cron (8 時間毎) or 手動 workflow_dispatch
 
 `pull_request` トリガーで `main` 向け全 PR の head 上で `npm run lint` / `npm run typecheck` を実行します。`cli-release-auto-pr` 側のプリフライトは scheduled run の SHA 上で走るため PR の check にならず、required check にはこちらを使います。`paths` フィルタを付けないのは、`paths` で skip されたワークフローはステータスを報告せず、required check に指定すると該当しない PR が永久に "Expected — Waiting for status to be reported" のままマージ不能になるためです。
 
-> `github-actions[bot]` が作成した PR 上の run は、書き込み権限を持つ人が承認するまで `action_required` で停止します。無人運用するには `CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY` の設定が必要です。未設定の場合は Actions タブから都度承認してください。
+> `github-actions[bot]` が作成した PR 上の run は、書き込み権限を持つ人が承認するまで `action_required` で停止します。無人運用するには `CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY` の設定が必要で、`npm run setup:release-app`（`scripts/setup-release-app.mjs`）が GitHub App manifest フローで App を作成し、変数とシークレットを自動登録します。未設定の場合は Actions タブから都度承認してください。
 
 ### 8.3 smoke-vite-server-url（PR 検証）
 
