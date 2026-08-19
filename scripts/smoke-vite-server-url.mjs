@@ -24,6 +24,7 @@ const hostCandidates = Array.from(
 ).filter((host) => host.length > 0);
 const HOST = hostCandidates[0] ?? "localhost";
 const DEFAULT_TIMEOUT_MS = 45_000;
+const TERMINATE_GRACE_MS = 5_000;
 const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
 const viteServerUrl =
   typeof process.env.VITE_SERVER_URL === "string"
@@ -132,6 +133,11 @@ function spawnNpm(args, label, extraEnv) {
           ...process.env,
           ...extraEnv,
         },
+        // Own process group so terminate() can signal the whole tree. npm spawns
+        // sh -> node -> esbuild, and signalling only the npm pid leaves those
+        // grandchildren alive holding the inherited stdio pipes, which keeps this
+        // process from ever exiting.
+        detached: true,
       });
 
   if (!child.stdout || !child.stderr) {
@@ -164,8 +170,51 @@ function spawnNpm(args, label, extraEnv) {
   return child;
 }
 
+function waitForExit(child, timeoutMsValue) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      child.off("exit", onExit);
+      resolve(false);
+    }, timeoutMsValue);
+
+    function onExit() {
+      clearTimeout(timer);
+      resolve(true);
+    }
+
+    child.once("exit", onExit);
+  });
+}
+
+/**
+ * Signals the child's whole process group.
+ *
+ * `child.kill()` only signals the npm process itself. npm runs the real work in
+ * sh -> node -> esbuild grandchildren, which inherit the stdio pipes; leaving them
+ * alive keeps this script's event loop from draining, so the process hangs until the
+ * CI job times out instead of exiting. Windows already avoided this because taskkill
+ * is invoked with /T.
+ */
+function signalGroup(child, signal) {
+  try {
+    process.kill(-child.pid, signal);
+    return true;
+  } catch {
+    try {
+      child.kill(signal);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 async function terminate(child) {
-  if (!child || child.killed || child.exitCode !== null) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
     return;
   }
 
@@ -185,11 +234,13 @@ async function terminate(child) {
     return;
   }
 
-  try {
-    child.kill("SIGTERM");
-  } catch {
-    // no-op
+  signalGroup(child, "SIGTERM");
+  if (await waitForExit(child, TERMINATE_GRACE_MS)) {
+    return;
   }
+
+  signalGroup(child, "SIGKILL");
+  await waitForExit(child, TERMINATE_GRACE_MS);
 }
 
 async function fetchText(url) {
