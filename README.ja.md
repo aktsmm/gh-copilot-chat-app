@@ -411,22 +411,37 @@ CLI の新しい Release を検出し、既定モデル候補の更新とリリ�
 | 名前 | 種別 | 既定 | 用途 |
 | --- | --- | --- | --- |
 | `CLI_RELEASE_REPO` | Variable | `github/copilot-cli` | 監視対象レポ。変更すると同期ブランチと状態ファイルも分離されます |
-| `CLI_RELEASE_REVIEWERS` | Variable | リポジトリオーナー | 同期 PR のレビュー依頼先（カンマ区切り） |
-| `CLI_RELEASE_AUTO_MERGE` | Variable | 未設定（無効） | `true` で required check 成功後の auto-merge を有効化 |
+| `CLI_RELEASE_REVIEWERS` | Variable | リポジトリオーナー | 同期 PR のレビュー依頼先（カンマ区切り）。**設定済み: `aktsmm`** |
+| `CLI_RELEASE_AUTO_MERGE` | Variable | 未設定（無効） | `true` で required check 成功後の auto-merge を有効化。**設定済み: `true`** |
 | `CLI_RELEASE_HOLD_LABEL` | Variable | `automation:hold` | このラベルが付いている間、同期 PR を更新しません |
 | `CLI_RELEASE_APP_ID` | Variable | 未設定 | GitHub App の App ID。設定すると PR head 上で `pull_request` ワークフローが承認なしで起動します（無人運用の必須条件） |
 | `CLI_RELEASE_APP_PRIVATE_KEY` | Secret | 未設定 | 同 App の秘密鍵 |
 
-### 必要なリポジトリ設定（手動）
+### リポジトリ設定
 
-1. **Allow auto-merge** を有効化（`CLI_RELEASE_AUTO_MERGE=true` で使う場合のみ）。
-2. **Automatically delete head branches** を有効化すると、マージ後に同期ブランチが確実に削除されます。
-3. **required check** には `cli-release-validate` を指定します。このワークフローは `paths` フィルタを持たず `main` 向けの全 PR で起動するため、required check にしても無関係な PR が "Expected — Waiting for status to be reported" で止まりません（`paths` 付きワークフローを required check にすると該当しない PR が永久にマージ不能になります）。
-4. GitHub App 未設定の場合、`GITHUB_TOKEN` で作成された PR のワークフローは**起動はするが「承認待ち」(`action_required`) で停止**します（bot 作成 PR に対する GitHub のセキュリティ仕様。`permissions` を read-only にしても回避できません）。実測でも `cli-release-validate` は PR 作成の 11 分後、手動承認によって初めて開始しました。この状態では PR が `UNSTABLE` のままとなり auto-merge も完了しません。次のいずれかで対応します。
+1. ✅ **Allow auto-merge** — 設定済み（`CLI_RELEASE_AUTO_MERGE=true` と併用）
+2. ✅ **Automatically delete head branches** — 設定済み。マージ後に同期ブランチが自動削除されます
+3. ✅ **required check** — ruleset `main-required-checks` で `validate`（`cli-release-validate` のジョブ）を必須化済み。このワークフローは `paths` フィルタを持たず `main` 向けの全 PR で起動するため、required check にしても無関係な PR が "Expected — Waiting for status to be reported" で止まりません（`paths` 付きワークフローを required check にすると該当しない PR が永久にマージ不能になります）
+4. ⬜ **GitHub App**（`CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY`）— **未設定**。未設定だと `GITHUB_TOKEN` で作成された PR のワークフローは**起動はするが「承認待ち」(`action_required`) で停止**します（bot 作成 PR に対する GitHub のセキュリティ仕様。`permissions` を read-only にしても回避できません）。実測でも `cli-release-validate` は PR 作成の 11 分後、手動承認によって初めて開始しました。この状態では required check が報告されないため PR は `BLOCKED` のままで、auto-merge も完了しません。次のいずれかで対応します。
    - Actions タブの該当 run で **Approve and run** を押す（`gh api -X POST repos/{owner}/{repo}/actions/runs/{run_id}/approve` でも可）
-   - `CLI_RELEASE_APP_ID` / `CLI_RELEASE_APP_PRIVATE_KEY` を設定して GitHub App トークンで PR を作らせる（**無人運用したい場合はこれが必須**）
+   - App を設定して GitHub App トークンで PR を作らせる（**完全な無人運用にはこれが必須**）
 
 > 参考: [Bot-created pull requests can run workflows if approved](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) / [Triggering a workflow](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)
+
+### 現在の運用フロー
+
+App 未設定の現状では、同期 PR は次の流れになります。
+
+```
+新リリース検知
+  └─ 同期 PR を作成（Ready）+ reviewer 依頼 + auto-merge を armed
+       └─ validate が action_required で待機
+            └─ 人が run を承認  ← ここだけ手動
+                 └─ validate 成功 → auto-merge が squash マージ
+                      └─ head ブランチ自動削除 → 次回以降は tag-unchanged で沈黙
+```
+
+App を設定すると、承認ステップが不要になり完全自動になります。
 
 ### 運用（拒否・保留）
 
