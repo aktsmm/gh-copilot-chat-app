@@ -5,8 +5,8 @@
 - Latest release: 1.0.80 (v1.0.80)
 - URL: https://github.com/github/copilot-cli/releases/tag/v1.0.80
 - Published at: 2026-08-14T02:28:39Z
-- Previously synced tag: v0.0.420
-- Releases replayed: 80
+- Previously synced tag: v1.0.80
+- Releases replayed: 1
 - Replay truncated: no
 
 ## Fallback Model List
@@ -23,47 +23,19 @@
 
 ## Model Changes Applied
 ### Added
-- gpt-5.4
-- gpt-5.4-mini
-- claude-opus-4.7
-- claude-opus-4.8
-- claude-sonnet-5
-- gemini-3.6-flash
-- claude-opus-5
-- grok-4.5
+- (none)
 ### Removed
 - (none)
 ### Added upstream but not in the final list (needs review)
 - (none)
 ### Mentioned only (not applied)
-- claude-sonnet-4.6
-- claude-sonnet-4.5
-- gpt-5.4
-- claude-opus-4.6
-- claude-opus-4.7
-- gpt-5.5
-- claude-opus-4.8
-- gemini-3.5-flash
-- gpt-5.6
-- claude-haiku-4.5
+- (none)
 
 ## Releases With Model Changes
-| Tag | Published | Change |
-| --- | --- | --- |
-| [v0.0.422](https://github.com/github/copilot-cli/releases/tag/v0.0.422) | 2026-03-05 | +gpt-5.4 |
-| [v1.0.7](https://github.com/github/copilot-cli/releases/tag/v1.0.7) | 2026-03-17 | +gpt-5.4-mini |
-| [v1.0.13](https://github.com/github/copilot-cli/releases/tag/v1.0.13) | 2026-03-30 | -gemini-3-pro-preview |
-| [v1.0.14](https://github.com/github/copilot-cli/releases/tag/v1.0.14) | 2026-03-31 | -gemini-3-pro-preview |
-| [v1.0.15](https://github.com/github/copilot-cli/releases/tag/v1.0.15) | 2026-04-01 | -gpt-5.1-codex, -gpt-5.1-codex-mini, -gpt-5.1-codex-max |
-| [v1.0.29](https://github.com/github/copilot-cli/releases/tag/v1.0.29) | 2026-04-16 | +claude-opus-4.7 |
-| [v1.0.55](https://github.com/github/copilot-cli/releases/tag/v1.0.55) | 2026-05-28 | +claude-opus-4.8 |
-| [v1.0.67](https://github.com/github/copilot-cli/releases/tag/v1.0.67) | 2026-06-30 | +claude-sonnet-5 |
-| [v1.0.74](https://github.com/github/copilot-cli/releases/tag/v1.0.74) | 2026-07-23 | +gemini-3.6-flash |
-| [v1.0.75](https://github.com/github/copilot-cli/releases/tag/v1.0.75) | 2026-07-24 | +claude-opus-5 |
-| [v1.0.76](https://github.com/github/copilot-cli/releases/tag/v1.0.76) | 2026-07-30 | +grok-4.5 |
+- (none)
 
 ## Replayed Releases
-- v1.0.29, v1.0.30, v1.0.31, v1.0.32, v1.0.33, v1.0.34, v1.0.35, v1.0.36, v1.0.37, v1.0.39, v1.0.40, v1.0.41, v1.0.42, v1.0.43, v1.0.44, v1.0.45, v1.0.46, v1.0.47, v1.0.48, v1.0.49, v1.0.51, v1.0.52, v1.0.53, v1.0.54, v1.0.55, v1.0.56, v1.0.57, v1.0.58, v1.0.59, v1.0.60, v1.0.61, v1.0.62, v1.0.63, v1.0.64, v1.0.65, v1.0.66, v1.0.67, v1.0.68, v1.0.69, v1.0.70, v1.0.71, v1.0.72, v1.0.73, v1.0.74, v1.0.75, v1.0.76, v1.0.77, v1.0.78, v1.0.79, v1.0.80 (and 30 older release(s))
+- v1.0.80
 
 ## Latest Release Notes (Excerpt)
 - 2026-08-14
