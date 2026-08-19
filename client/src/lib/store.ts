@@ -23,7 +23,17 @@ import type {
 } from "./types";
 
 const SETTINGS_KEY = "ghc-chat-settings-v1";
-const DEFAULT_MODELS = ["gpt-4.1"] as const;
+const DEFAULT_MODELS = [
+  "gpt-4.1",
+  "gpt-5.4",
+  "gpt-5.4-mini",
+  "claude-opus-4.7",
+  "claude-opus-4.8",
+  "claude-sonnet-5",
+  "gemini-3.6-flash",
+  "claude-opus-5",
+  "grok-4.5",
+] as const;
 
 function shouldHideModel(modelId: string): boolean {
   const normalized = modelId.trim();
