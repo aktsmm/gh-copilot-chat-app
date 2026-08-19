@@ -7,10 +7,12 @@ name: cli-release-validate
 # cli-release-auto-pr.yml which runs on the scheduled run's SHA and therefore never appears as
 # a check on the pull request.
 #
-# Caveat: a pull request created with secrets.GITHUB_TOKEN does not trigger `pull_request`
-# workflows. Configure the CLI_RELEASE_APP_ID / CLI_RELEASE_APP_PRIVATE_KEY GitHub App
-# credentials so the sync pull request is created with an App token and this workflow starts
-# automatically. See README for the manual fallback.
+# Caveat: a pull request created with secrets.GITHUB_TOKEN does trigger `pull_request`
+# workflows, but GitHub holds those runs in `action_required` until someone with write access
+# approves them (a security control for bot-authored pull requests; declaring read-only
+# `permissions` does not bypass it). Configure CLI_RELEASE_APP_ID /
+# CLI_RELEASE_APP_PRIVATE_KEY so the sync pull request is created with an App token and this
+# workflow starts without manual approval. Otherwise approve the run from the Actions tab.
 #
 # Deliberately no `paths` filter: a workflow that is skipped by a path filter never reports a
 # status, so designating it a required check would leave every unrelated pull request stuck on
