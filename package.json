@@ -17,6 +17,7 @@
     "smoke:vite-server-url:127001": "node scripts/smoke-vite-host-matrix.mjs 127.0.0.1",
     "smoke:vite-server-url:matrix": "node scripts/smoke-vite-host-matrix.mjs",
     "automation:cli-release": "node scripts/cli-release-automation.mjs",
+    "setup:release-app": "node scripts/setup-release-app.mjs",
     "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
     "dev:server": "npm run dev -w server",
     "dev:client": "npm run dev -w client",
