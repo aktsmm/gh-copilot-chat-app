@@ -33,6 +33,8 @@ const DEFAULT_MODELS = [
   "gemini-3.6-flash",
   "claude-opus-5",
   "grok-4.5",
+  "grok-4.6",
+  "gemini-3.7-flash",
 ] as const;
 
 function shouldHideModel(modelId: string): boolean {
