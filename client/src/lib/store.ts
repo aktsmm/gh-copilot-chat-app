@@ -35,6 +35,7 @@ const DEFAULT_MODELS = [
   "grok-4.5",
   "grok-4.6",
   "gemini-3.7-flash",
+  "gpt-6",
 ] as const;
 
 function shouldHideModel(modelId: string): boolean {
