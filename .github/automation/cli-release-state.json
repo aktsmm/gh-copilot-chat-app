@@ -1,9 +1,9 @@
 {
   "repo": "github/copilot-cli",
-  "lastTag": "v1.0.89",
-  "lastName": "1.0.89",
-  "lastUrl": "https://github.com/github/copilot-cli/releases/tag/v1.0.89",
-  "lastPublishedAt": "2026-09-28T19:20:50Z",
+  "lastTag": "v1.0.90",
+  "lastName": "1.0.90",
+  "lastUrl": "https://github.com/github/copilot-cli/releases/tag/v1.0.90",
+  "lastPublishedAt": "2026-09-30T21:38:30Z",
   "lastModels": [
     "gpt-4.1",
     "gpt-5.4",
@@ -17,6 +17,7 @@
     "grok-4.6",
     "gemini-3.7-flash",
     "gpt-6",
-    "claude-opus-5.5"
+    "claude-opus-5.5",
+    "gpt-6.1-sol"
   ]
 }
