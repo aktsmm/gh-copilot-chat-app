@@ -1,9 +1,9 @@
 {
   "repo": "github/copilot-cli",
-  "lastTag": "v1.0.97",
-  "lastName": "1.0.97",
-  "lastUrl": "https://github.com/github/copilot-cli/releases/tag/v1.0.97",
-  "lastPublishedAt": "2026-10-13T18:37:05Z",
+  "lastTag": "v1.0.98",
+  "lastName": "1.0.98",
+  "lastUrl": "https://github.com/github/copilot-cli/releases/tag/v1.0.98",
+  "lastPublishedAt": "2026-10-14T19:52:33Z",
   "lastModels": [
     "gpt-4.1",
     "gpt-5.4",
