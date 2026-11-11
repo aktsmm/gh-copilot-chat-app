@@ -1,0 +1,79 @@
+# Copilot CLI Release Sync (v1.0.109)
+
+## Summary
+- Source repository: github/copilot-cli
+- Latest release: 1.0.109 (v1.0.109)
+- URL: https://github.com/github/copilot-cli/releases/tag/v1.0.109
+- Published at: 2026-11-10T17:02:15Z
+- Previously synced tag: v1.0.108
+- Releases replayed: 1
+- Replay truncated: no
+
+## Fallback Model List
+- Default model: gpt-4.1
+- gpt-4.1
+- gpt-5.4
+- gpt-5.4-mini
+- claude-opus-4.7
+- claude-opus-4.8
+- claude-sonnet-5
+- gemini-3.6-flash
+- claude-opus-5
+- grok-4.5
+- grok-4.6
+- gemini-3.7-flash
+- gpt-6
+- claude-opus-5.5
+- gpt-6.1-sol
+
+## Model Changes Applied
+### Added
+- (none)
+### Removed
+- (none)
+### Added upstream but not in the final list (needs review)
+- (none)
+### Mentioned only (not applied)
+- (none)
+
+## Releases With Model Changes
+- (none)
+
+## Replayed Releases
+- v1.0.109
+
+## Latest Release Notes (Excerpt)
+- 2026-11-10
+- - Add IPv4/IPv6 CIDR support for sandbox host allow and deny rules in settings.
+- - Add support for Claude Fable 5.2 in the model picker under New models
+- - copilot help input now says that Backspace at the start of shell input leaves shell mode and keeps the typed text, not only on an empty prompt
+- - /subagents keeps its Overridden and Status columns readable on narrow terminals and aligns agent names with wide characters
+- - Removing a built-in MCP server with `copilot mcp remove` or `/mcp delete` explains how to disable it instead
+- - Selecting a directory next to your home directory in `/cd ~` or `/add-dir ~` uses the correct full path
+- - Trusted-folder and worktree confirmations keep Windows path separators
+- - Hide empty assistant reply bullets when a response contains only whitespace
+- - Choosing "don't ask again" for parallel file operations approves all covered requests without prompting again
+- - Make /terminal-setup configure Shift+Enter in the correct location for VS Code, Cursor, and Windsurf on Linux when XDG_CONFIG_HOME is set
+- - The footer's AI credits now update as soon as `/compact` finishes instead of after the next turn
+- - Prompt mode with --output-format json emits a final result record with an exit status even when a run fails early
+- - Rate-limit errors now name the same mode as the switch dialog (Copilot Fusion mode or auto mode) instead of "auto model"
+- - In a multi-line prompt, Up and Down now start from the cursor after Left, Right, Backspace, Delete or a similar key that had nothing to act on at the start or end of the text, instead of jumping to the column of the previous Up/Down run
+- - Number keys keep working in shell and URL approval dialogs after pressing the number of the "No, and tell Copilot" option and moving back up
+- - `/cd .` and `/add-dir .` now keep the current directory in a git repository instead of selecting `.git`; the directory picker lists `./` first and still offers hidden directories below it
+- - In ACP mode, a preToolUse hook that answers ask now asks the ACP client to allow or deny the tool call instead of denying it as host policy
+- - /voice immediately reports an overly long socket path and how to fix it, instead of waiting before showing a generic error.
+- - File move permission prompts show both source and destination paths, and pure renames no longer show an empty diff.
+- - Session history keeps every turn when a second window works on a session another window still has open
+- - The `beepOnSchedule` setting description now says it controls the beep when a scheduled `/every` or `/after` turn finishes, and only while `beep` is on, instead of a beep when the prompt fires
+- - The `companyAnnouncements` setting description now says one message, picked at random, appears in the timeline as a Company announcement notice, not in the startup banner
+- - `copilot help config` no longer says turning off `compactPaste` shows every paste in full; pastes over 20 KB are still saved to a workspace file
+- - `copilot help config` now names the home screen tabs as they appear, Current and Sessions, instead of Session and Agents
+- - The `ctrl+h` entry in the keyboard shortcut help now says it deletes the previous word in local Windows terminals, where the terminal sends the same key for `ctrl+h` and `ctrl+backspace`
+- - The `footer.showModelEffort` setting description now says it toggles only the reasoning effort label next to the model name, which always shows, and that the effort shows briefly after it changes when the setting is unset
+- - `copilot help config` no longer names staff-only and internal settings, such as `taskbarPresence`, `showTipsOnStartup` and `streamerMode`
+- - The `ide.openDiffOnEdit` setting description now says the IDE diff opens for a file edit waiting for your approval, and that accepting or rejecting it answers that prompt, instead of a diff on every edit
+- - Text typed after /init now reaches the model as extra guidance for the generated instructions file and appears in the timeline, instead of being silently dropped.
+
+_Generated by scripts/cli-release-automation.mjs. The content is derived only from
+release metadata, so repeated runs against the same base branch and the same upstream
+release list produce byte-identical output._
