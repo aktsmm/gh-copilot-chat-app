@@ -38,6 +38,7 @@ const DEFAULT_MODELS = [
   "gpt-6",
   "claude-opus-5.5",
   "gpt-6.1-sol",
+  "gpt-6.2",
 ] as const;
 
 function shouldHideModel(modelId: string): boolean {
